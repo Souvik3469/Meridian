@@ -43,6 +43,7 @@ class LogEntry:
     start_hour: float
     end_hour: float
     label: str
+    distance_marker_miles: float = 0.0
 
     @property
     def duration(self) -> float:
@@ -67,6 +68,7 @@ class HOSEngine:
         self.hours_since_break = 0.0
         self.cycle_hours_used = current_cycle_used_hours
         self.miles_since_fuel = 0.0
+        self.distance_traveled_miles = 0.0
         self.entries: list[LogEntry] = []
 
     def drive(self, distance_miles: float, duration_hours: float, label: str) -> None:
@@ -106,8 +108,10 @@ class HOSEngine:
                     self._take_fuel_stop()
                 continue
 
+            distance_delta = chunk * avg_speed_mph
+            self.miles_since_fuel += distance_delta
+            self.distance_traveled_miles += distance_delta
             self._append(DutyStatus.DRIVING, chunk, label)
-            self.miles_since_fuel += chunk * avg_speed_mph
             remaining_hours -= chunk
 
     def on_duty(self, duration_hours: float, label: str) -> None:
@@ -147,7 +151,7 @@ class HOSEngine:
         if duration <= _EPSILON:
             return
 
-        entry = LogEntry(status, self.clock, self.clock + duration, label)
+        entry = LogEntry(status, self.clock, self.clock + duration, label, self.distance_traveled_miles)
         self.entries.append(entry)
         self.clock += duration
 

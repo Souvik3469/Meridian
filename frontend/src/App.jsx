@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './App.css'
 import { planTrip } from './api/tripService'
+import MapView from './components/MapView'
 import TripForm from './components/TripForm'
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
           <p>
             {result.days.length} day{result.days.length > 1 ? 's' : ''} of duty logs generated
           </p>
+          <MapView route={result.route} />
         </div>
       )}
     </div>

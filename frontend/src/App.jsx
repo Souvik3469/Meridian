@@ -1,22 +1,42 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import './App.css'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+import { planTrip } from './api/tripService'
+import TripForm from './components/TripForm'
 
 function App() {
-  const [backendStatus, setBackendStatus] = useState('checking...')
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/health/`)
-      .then((res) => res.json())
-      .then((data) => setBackendStatus(data.status))
-      .catch(() => setBackendStatus('unreachable'))
-  }, [])
+  const handleSubmit = async (payload) => {
+    setIsSubmitting(true)
+    setError(null)
+    setResult(null)
+    try {
+      setResult(await planTrip(payload))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="app">
       <h1>ELD Trip Planner</h1>
-      <p>Backend status: {backendStatus}</p>
+      <TripForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+      {error && <p className="error">{error}</p>}
+      {result && (
+        <div className="result-summary">
+          <p>
+            {result.route.distance_miles.toFixed(1)} miles &middot;{' '}
+            {result.route.duration_hours.toFixed(1)} hrs driving
+          </p>
+          <p>
+            {result.days.length} day{result.days.length > 1 ? 's' : ''} of duty logs generated
+          </p>
+        </div>
+      )}
     </div>
   )
 }

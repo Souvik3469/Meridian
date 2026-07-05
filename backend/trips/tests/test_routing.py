@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 
+import requests
 from django.test import SimpleTestCase
 
 from trips.services.exceptions import RoutingError
@@ -44,6 +45,13 @@ class GetRouteTests(SimpleTestCase):
     @patch("trips.services.routing.requests.post")
     def test_raises_on_non_200_response(self, mock_post):
         mock_post.return_value = Mock(status_code=404, text="not found")
+
+        with self.assertRaises(RoutingError):
+            get_route([(0, 0), (1, 1)])
+
+    @patch("trips.services.routing.requests.post")
+    def test_wraps_connection_errors_as_routing_error(self, mock_post):
+        mock_post.side_effect = requests.ConnectionError("connection refused")
 
         with self.assertRaises(RoutingError):
             get_route([(0, 0), (1, 1)])

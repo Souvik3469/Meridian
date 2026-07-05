@@ -31,15 +31,18 @@ def get_route(waypoints: list[tuple[float, float]]) -> RouteResult:
     (one entry per consecutive pair of waypoints), so the HOS engine can
     simulate each drive segment independently.
     """
-    response = requests.post(
-        ORS_DIRECTIONS_URL,
-        json={"coordinates": [[lng, lat] for lat, lng in waypoints]},
-        headers={
-            "Authorization": settings.OPENROUTESERVICE_API_KEY,
-            "Content-Type": "application/json",
-        },
-        timeout=15,
-    )
+    try:
+        response = requests.post(
+            ORS_DIRECTIONS_URL,
+            json={"coordinates": [[lng, lat] for lat, lng in waypoints]},
+            headers={
+                "Authorization": settings.OPENROUTESERVICE_API_KEY,
+                "Content-Type": "application/json",
+            },
+            timeout=15,
+        )
+    except requests.RequestException as exc:
+        raise RoutingError(f"Routing request failed: {exc}") from exc
 
     if response.status_code != 200:
         raise RoutingError(f"Routing request failed: {response.status_code} {response.text}")

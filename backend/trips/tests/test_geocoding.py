@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 
+import requests
 from django.test import SimpleTestCase
 
 from trips.services.exceptions import GeocodingError
@@ -28,3 +29,12 @@ class GeocodeTests(SimpleTestCase):
 
         with self.assertRaises(GeocodingError):
             geocode("Nowhere in particular")
+
+    @patch("trips.services.geocoding.requests.get")
+    def test_wraps_http_errors_as_geocoding_error(self, mock_get):
+        response = Mock()
+        response.raise_for_status.side_effect = requests.HTTPError("401 Client Error: Unauthorized")
+        mock_get.return_value = response
+
+        with self.assertRaises(GeocodingError):
+            geocode("Denver, CO")

@@ -5,6 +5,13 @@ const ROWS = [
   { key: 'on_duty_not_driving', label: '4. On Duty (not driving)' },
 ]
 
+const DUTY_COLOR_VARS = {
+  off_duty: 'var(--duty-off-duty)',
+  sleeper_berth: 'var(--duty-sleeper)',
+  driving: 'var(--duty-driving)',
+  on_duty_not_driving: 'var(--duty-on-duty)',
+}
+
 const HOUR_WIDTH = 30
 const ROW_HEIGHT = 36
 const LABEL_WIDTH = 170
@@ -18,9 +25,12 @@ function hourToX(hour) {
   return LABEL_WIDTH + hour * HOUR_WIDTH
 }
 
+function rowIndex(status) {
+  return ROWS.findIndex((row) => row.key === status)
+}
+
 function rowY(status) {
-  const index = ROWS.findIndex((row) => row.key === status)
-  return HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2
+  return HEADER_HEIGHT + rowIndex(status) * ROW_HEIGHT + ROW_HEIGHT / 2
 }
 
 function formatHourLabel(hour) {
@@ -29,22 +39,37 @@ function formatHourLabel(hour) {
   return hour > 12 ? `${hour - 12}` : `${hour}`
 }
 
-function buildStepPath(entries) {
-  if (entries.length === 0) return ''
+function DutyStepLine({ entries }) {
+  return (
+    <>
+      {entries.map((entry, index) => {
+        const y = rowY(entry.status)
+        const x1 = hourToX(entry.start_hour)
+        const x2 = hourToX(entry.end_hour)
+        const previous = entries[index - 1]
 
-  let path = `M ${hourToX(entries[0].start_hour)} ${rowY(entries[0].status)}`
-  entries.forEach((entry, index) => {
-    if (index > 0) {
-      path += ` L ${hourToX(entry.start_hour)} ${rowY(entry.status)}`
-    }
-    path += ` L ${hourToX(entry.end_hour)} ${rowY(entry.status)}`
-  })
-  return path
+        return (
+          <g key={index}>
+            {previous && (
+              <line x1={x1} y1={rowY(previous.status)} x2={x1} y2={y} style={{ stroke: 'var(--ink-muted)' }} strokeWidth={2} />
+            )}
+            <line
+              x1={x1}
+              y1={y}
+              x2={x2}
+              y2={y}
+              style={{ stroke: DUTY_COLOR_VARS[entry.status] }}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </g>
+        )
+      })}
+    </>
+  )
 }
 
 function LogSheet({ day }) {
-  const path = buildStepPath(day.entries)
-
   return (
     <div className="log-sheet">
       <h3>Day {day.day_number}</h3>
@@ -56,9 +81,20 @@ function LogSheet({ day }) {
               y={HEADER_HEIGHT + index * ROW_HEIGHT}
               width={TOTAL_WIDTH}
               height={ROW_HEIGHT}
-              fill={index % 2 === 0 ? '#fafafa' : '#ffffff'}
+              style={{ fill: index % 2 === 0 ? 'var(--surface)' : 'var(--page)' }}
             />
-            <text x={8} y={HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2 + 4} fontSize="11">
+            <circle
+              cx={12}
+              cy={HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2}
+              r={4}
+              style={{ fill: DUTY_COLOR_VARS[row.key] }}
+            />
+            <text
+              x={24}
+              y={HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2 + 4}
+              fontSize="11"
+              style={{ fill: 'var(--ink-secondary)' }}
+            >
               {row.label}
             </text>
           </g>
@@ -71,7 +107,7 @@ function LogSheet({ day }) {
             y1={HEADER_HEIGHT}
             x2={hourToX(hour)}
             y2={TOTAL_HEIGHT}
-            stroke="#ccc"
+            style={{ stroke: hour % 6 === 0 ? 'var(--border)' : 'var(--gridline)' }}
             strokeWidth={hour % 6 === 0 ? 1.2 : 0.5}
           />
         ))}
@@ -83,18 +119,26 @@ function LogSheet({ day }) {
             y={HEADER_HEIGHT - 8}
             fontSize="9"
             textAnchor="middle"
+            style={{ fill: 'var(--ink-muted)' }}
           >
             {formatHourLabel(hour)}
           </text>
         ))}
 
-        <line x1={LABEL_WIDTH} y1={HEADER_HEIGHT} x2={LABEL_WIDTH} y2={TOTAL_HEIGHT} stroke="#333" />
-        <path d={path} fill="none" stroke="#1d4ed8" strokeWidth={2} />
+        <line
+          x1={LABEL_WIDTH}
+          y1={HEADER_HEIGHT}
+          x2={LABEL_WIDTH}
+          y2={TOTAL_HEIGHT}
+          style={{ stroke: 'var(--border)' }}
+        />
+        <DutyStepLine entries={day.entries} />
       </svg>
 
       <ul className="log-sheet-totals">
         {ROWS.map((row) => (
-          <li key={row.key}>
+          <li key={row.key} className="legend__item">
+            <span className="dot" style={{ background: DUTY_COLOR_VARS[row.key] }} />
             {row.label}: {(day.totals[row.key] || 0).toFixed(1)} hrs
           </li>
         ))}

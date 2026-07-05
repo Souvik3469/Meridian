@@ -3,6 +3,7 @@ import './App.css'
 import { planTrip } from './api/tripService'
 import LogSheetList from './components/LogSheetList'
 import MapView from './components/MapView'
+import StatTiles from './components/StatTiles'
 import TripForm from './components/TripForm'
 
 function App() {
@@ -25,18 +26,31 @@ function App() {
 
   return (
     <div className="app">
-      <h1>ELD Trip Planner</h1>
-      <TripForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
-      {error && <p className="error">{error}</p>}
+      <header className="app-header">
+        <h1>ELD Trip Planner</h1>
+        <p className="app-subtitle">
+          Plan a compliant route and auto-fill your FMCSA daily logs.
+        </p>
+      </header>
+
+      <div className="card">
+        <TripForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+      </div>
+
+      {error && (
+        <div className="alert alert--critical" role="alert">
+          <span className="alert__icon" aria-hidden="true">
+            !
+          </span>
+          <span>
+            <strong>Couldn&apos;t plan this trip.</strong> {error}
+          </span>
+        </div>
+      )}
+
       {result && (
-        <div className="result-summary">
-          <p>
-            {result.route.distance_miles.toFixed(1)} miles &middot;{' '}
-            {result.route.duration_hours.toFixed(1)} hrs driving
-          </p>
-          <p>
-            {result.days.length} day{result.days.length > 1 ? 's' : ''} of duty logs generated
-          </p>
+        <div className="results">
+          <StatTiles route={result.route} dayCount={result.days.length} />
           <MapView route={result.route} />
           <LogSheetList days={result.days} />
         </div>

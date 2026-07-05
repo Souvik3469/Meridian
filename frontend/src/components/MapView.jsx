@@ -1,16 +1,23 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
-import markerIcon from 'leaflet/dist/images/marker-icon.png'
-import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
 
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-})
+const STOP_LABELS = {
+  current: 'Current location',
+  pickup: 'Pickup',
+  dropoff: 'Dropoff',
+  rest: 'Rest stop',
+  fuel: 'Fuel stop',
+}
+
+function createStopIcon(type) {
+  return L.divIcon({
+    className: 'stop-marker',
+    html: `<span class="dot dot--${type}"></span>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  })
+}
 
 function MapView({ route }) {
   if (!route || route.geometry.length === 0) return null
@@ -18,22 +25,32 @@ function MapView({ route }) {
   const center = route.geometry[Math.floor(route.geometry.length / 2)]
 
   return (
-    <MapContainer center={center} zoom={6} scrollWheelZoom={false} className="map-view">
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <Polyline positions={route.geometry} color="#2563eb" weight={4} />
-      {route.stops.map((stop, index) => (
-        <Marker key={`${stop.type}-${index}`} position={[stop.lat, stop.lng]}>
-          <Popup>
-            <strong>{stop.type}</strong>
-            <br />
-            {stop.label}
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+    <div className="map-card">
+      <MapContainer center={center} zoom={6} scrollWheelZoom={false} className="map-view">
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <Polyline positions={route.geometry} pathOptions={{ className: 'route-line' }} weight={4} />
+        {route.stops.map((stop, index) => (
+          <Marker key={`${stop.type}-${index}`} position={[stop.lat, stop.lng]} icon={createStopIcon(stop.type)}>
+            <Popup>
+              <strong>{STOP_LABELS[stop.type] || stop.type}</strong>
+              <br />
+              {stop.label}
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+      <ul className="legend">
+        {Object.entries(STOP_LABELS).map(([type, label]) => (
+          <li key={type} className="legend__item">
+            <span className={`dot dot--${type}`} />
+            {label}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

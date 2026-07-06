@@ -29,7 +29,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header no-print">
-        <h1>ELD Trip Planner</h1>
+        <h1>Meridian</h1>
         <p className="app-subtitle">
           Plan a compliant route and auto-fill your FMCSA daily logs.
         </p>

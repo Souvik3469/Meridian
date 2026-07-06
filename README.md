@@ -1,6 +1,6 @@
-# ELD Trip Planner
+# Meridian
 
-A full-stack app for truck drivers: enter a trip's current/pickup/dropoff
+An ELD trip planner for truck drivers: enter a trip's current/pickup/dropoff
 locations and how many hours you've already worked this cycle, and get back
 a route map with rest/fuel stops plus auto-filled FMCSA daily log sheets.
 

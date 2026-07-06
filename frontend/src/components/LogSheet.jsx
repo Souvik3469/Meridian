@@ -73,67 +73,74 @@ function LogSheet({ day }) {
   return (
     <div className="log-sheet">
       <h3>Day {day.day_number}</h3>
-      <svg viewBox={`0 0 ${TOTAL_WIDTH} ${TOTAL_HEIGHT}`} className="log-sheet-grid">
-        {ROWS.map((row, index) => (
-          <g key={row.key}>
-            <rect
-              x={0}
-              y={HEADER_HEIGHT + index * ROW_HEIGHT}
-              width={TOTAL_WIDTH}
-              height={ROW_HEIGHT}
-              style={{ fill: index % 2 === 0 ? 'var(--surface)' : 'var(--page)' }}
+      <div className="log-sheet-scroll">
+        <svg
+          viewBox={`0 0 ${TOTAL_WIDTH} ${TOTAL_HEIGHT}`}
+          width={TOTAL_WIDTH}
+          height={TOTAL_HEIGHT}
+          className="log-sheet-grid"
+        >
+          {ROWS.map((row, index) => (
+            <g key={row.key}>
+              <rect
+                x={0}
+                y={HEADER_HEIGHT + index * ROW_HEIGHT}
+                width={TOTAL_WIDTH}
+                height={ROW_HEIGHT}
+                style={{ fill: index % 2 === 0 ? 'var(--surface)' : 'var(--page)' }}
+              />
+              <circle
+                cx={12}
+                cy={HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2}
+                r={4}
+                style={{ fill: DUTY_COLOR_VARS[row.key] }}
+              />
+              <text
+                x={24}
+                y={HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2 + 4}
+                fontSize="11"
+                style={{ fill: 'var(--ink-secondary)' }}
+              >
+                {row.label}
+              </text>
+            </g>
+          ))}
+
+          {Array.from({ length: 25 }, (_, hour) => (
+            <line
+              key={hour}
+              x1={hourToX(hour)}
+              y1={HEADER_HEIGHT}
+              x2={hourToX(hour)}
+              y2={TOTAL_HEIGHT}
+              style={{ stroke: hour % 6 === 0 ? 'var(--border)' : 'var(--gridline)' }}
+              strokeWidth={hour % 6 === 0 ? 1.2 : 0.5}
             />
-            <circle
-              cx={12}
-              cy={HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2}
-              r={4}
-              style={{ fill: DUTY_COLOR_VARS[row.key] }}
-            />
+          ))}
+
+          {Array.from({ length: 24 }, (_, hour) => (
             <text
-              x={24}
-              y={HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2 + 4}
-              fontSize="11"
-              style={{ fill: 'var(--ink-secondary)' }}
+              key={hour}
+              x={hourToX(hour) + HOUR_WIDTH / 2}
+              y={HEADER_HEIGHT - 8}
+              fontSize="9"
+              textAnchor="middle"
+              style={{ fill: 'var(--ink-muted)' }}
             >
-              {row.label}
+              {formatHourLabel(hour)}
             </text>
-          </g>
-        ))}
+          ))}
 
-        {Array.from({ length: 25 }, (_, hour) => (
           <line
-            key={hour}
-            x1={hourToX(hour)}
+            x1={LABEL_WIDTH}
             y1={HEADER_HEIGHT}
-            x2={hourToX(hour)}
+            x2={LABEL_WIDTH}
             y2={TOTAL_HEIGHT}
-            style={{ stroke: hour % 6 === 0 ? 'var(--border)' : 'var(--gridline)' }}
-            strokeWidth={hour % 6 === 0 ? 1.2 : 0.5}
+            style={{ stroke: 'var(--border)' }}
           />
-        ))}
-
-        {Array.from({ length: 24 }, (_, hour) => (
-          <text
-            key={hour}
-            x={hourToX(hour) + HOUR_WIDTH / 2}
-            y={HEADER_HEIGHT - 8}
-            fontSize="9"
-            textAnchor="middle"
-            style={{ fill: 'var(--ink-muted)' }}
-          >
-            {formatHourLabel(hour)}
-          </text>
-        ))}
-
-        <line
-          x1={LABEL_WIDTH}
-          y1={HEADER_HEIGHT}
-          x2={LABEL_WIDTH}
-          y2={TOTAL_HEIGHT}
-          style={{ stroke: 'var(--border)' }}
-        />
-        <DutyStepLine entries={day.entries} />
-      </svg>
+          <DutyStepLine entries={day.entries} />
+        </svg>
+      </div>
 
       <ul className="log-sheet-totals">
         {ROWS.map((row) => (

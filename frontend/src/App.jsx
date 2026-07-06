@@ -50,7 +50,19 @@ function App() {
 
       {result && (
         <div className="results">
-          <StatTiles route={result.route} dayCount={result.days.length} />
+          {result.summary.requires_34_hour_restart && (
+            <div className="alert alert--warning" role="alert">
+              <span className="alert__icon alert__icon--warning" aria-hidden="true">
+                !
+              </span>
+              <span>
+                <strong>34-hour restart required.</strong> Your available cycle hours run
+                out partway through this trip, adding a mandatory 34-hour break before
+                driving can resume.
+              </span>
+            </div>
+          )}
+          <StatTiles route={result.route} dayCount={result.days.length} summary={result.summary} />
           <MapView route={result.route} />
           <LogSheetList days={result.days} />
         </div>

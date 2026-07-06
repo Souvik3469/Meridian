@@ -19,6 +19,7 @@
   --duty-off-duty: #898781;
 
   --status-critical: #d03b3b;
+  --status-warning: #fab219;
 
   --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
@@ -54,6 +55,7 @@
     --duty-off-duty: #898781;
 
     --status-critical: #d03b3b;
+  --status-warning: #fab219;
   }
 }
 

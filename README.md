@@ -5,9 +5,10 @@ locations and how many hours you've already worked this cycle, and get back
 a route map with rest/fuel stops plus auto-filled FMCSA daily log sheets.
 
 Built for a take-home full-stack assessment. See [ARCHITECTURE.md](ARCHITECTURE.md)
-for how it works, in plain English and in HLD/LLD technical detail, and
+for how it works, in plain English and in HLD/LLD technical detail,
 [PRODUCT.md](PRODUCT.md) for the product-owner read on who it's for and what
-it does (and doesn't) solve.
+it does (and doesn't) solve, and [TEST_PLAN.md](TEST_PLAN.md) for a manual
+test plan covering basic through edge-case scenarios.
 
 - **Live app**: TBD
 - **Loom walkthrough**: TBD
@@ -60,4 +61,5 @@ backend/    Django project (config/) + trips app (API, HOS engine)
 frontend/   React app (Vite)
 ARCHITECTURE.md   System design: plain-English + HLD/LLD
 PRODUCT.md        Product-owner perspective: user journey, scope, limits
+TEST_PLAN.md      Manual test plan: basic -> advanced -> edge cases
 ```

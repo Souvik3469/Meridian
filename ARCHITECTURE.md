@@ -164,9 +164,12 @@ Response:
 |---|---|
 | `api/tripService.js` | Fetch wrapper for `POST /api/trips/plan/` |
 | `components/TripForm.jsx` | The 4 inputs + submit |
-| `components/MapView.jsx` | Leaflet map — polyline route + stop markers |
+| `components/StatTiles.jsx` | Distance / driving time / total trip time / day-count summary tiles |
+| `components/MapView.jsx` | Leaflet map — polyline route + stop markers + "Open in Google Maps" link |
 | `components/LogSheet.jsx` | SVG renderer drawing the duty-status step-line onto the FMCSA grid for one day |
-| `App.jsx` | Form → loading → results orchestration |
+| `components/LogSheetList.jsx` | Renders one `LogSheet` per day + the print-only trip-context line |
+| `utils/googleMapsLink.js` | Builds a Google Maps directions URL from the trip's real (non-interpolated) stops |
+| `App.jsx` | Form → loading → results orchestration, print stylesheet triggers |
 
 ## Deployment topology
 

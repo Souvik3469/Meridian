@@ -41,6 +41,18 @@ class PlanTripViewTests(SimpleTestCase):
         stop_types = {stop["type"] for stop in body["route"]["stops"]}
         self.assertIn("pickup", stop_types)
         self.assertIn("dropoff", stop_types)
+        self.assertIn("summary", body)
+        self.assertFalse(body["summary"]["requires_34_hour_restart"])
+        self.assertGreater(body["summary"]["total_trip_hours"], 0)
+
+    @patch("trips.planner.get_route", return_value=SAMPLE_ROUTE)
+    @patch("trips.planner.geocode", return_value=(39.7, -105.0))
+    def test_summary_flags_when_cycle_hours_force_a_restart(self, mock_geocode, mock_get_route):
+        payload = {**self.valid_payload, "current_cycle_used_hours": 69}
+        response = self.client.post("/api/trips/plan/", payload, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["summary"]["requires_34_hour_restart"])
 
     def test_rejects_missing_fields(self):
         response = self.client.post("/api/trips/plan/", {}, format="json")

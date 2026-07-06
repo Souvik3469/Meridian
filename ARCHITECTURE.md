@@ -150,7 +150,11 @@ Response:
       ],
       "totals": { "driving": 8.5, "on_duty": 2.0, "off_duty": 10.0, "sleeper_berth": 0 }
     }
-  ]
+  ],
+  "summary": {
+    "total_trip_hours": 13.3,
+    "requires_34_hour_restart": false
+  }
 }
 ```
 

@@ -66,4 +66,8 @@ def plan_trip(
             }
             for day in split_into_days(entries)
         ],
+        "summary": {
+            "total_trip_hours": entries[-1].end_hour if entries else 0.0,
+            "requires_34_hour_restart": any(entry.label == "34-hour restart" for entry in entries),
+        },
     }

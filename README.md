@@ -5,7 +5,9 @@ locations and how many hours you've already worked this cycle, and get back
 a route map with rest/fuel stops plus auto-filled FMCSA daily log sheets.
 
 Built for a take-home full-stack assessment. See [ARCHITECTURE.md](ARCHITECTURE.md)
-for how it works, in plain English and in HLD/LLD technical detail.
+for how it works, in plain English and in HLD/LLD technical detail, and
+[PRODUCT.md](PRODUCT.md) for the product-owner read on who it's for and what
+it does (and doesn't) solve.
 
 - **Live app**: TBD
 - **Loom walkthrough**: TBD
@@ -57,4 +59,5 @@ The frontend expects the backend at `http://127.0.0.1:8000` by default (see
 backend/    Django project (config/) + trips app (API, HOS engine)
 frontend/   React app (Vite)
 ARCHITECTURE.md   System design: plain-English + HLD/LLD
+PRODUCT.md        Product-owner perspective: user journey, scope, limits
 ```

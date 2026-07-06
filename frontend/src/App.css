@@ -222,6 +222,28 @@
   padding: 1rem;
 }
 
+.map-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+  min-height: 1.6rem;
+}
+
+.gmaps-link {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+.gmaps-link:hover {
+  background: var(--surface);
+}
+
 .map-view {
   height: 380px;
   width: 100%;

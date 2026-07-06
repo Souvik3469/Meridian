@@ -1,6 +1,7 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
+import { buildGoogleMapsDirectionsUrl } from '../utils/googleMapsLink'
 
 const STOP_LABELS = {
   current: 'Current location',
@@ -23,9 +24,17 @@ function MapView({ route }) {
   if (!route || route.geometry.length === 0) return null
 
   const center = route.geometry[Math.floor(route.geometry.length / 2)]
+  const googleMapsUrl = buildGoogleMapsDirectionsUrl(route.stops)
 
   return (
     <div className="map-card">
+      <div className="map-card__actions">
+        {googleMapsUrl && (
+          <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="gmaps-link">
+            Open in Google Maps
+          </a>
+        )}
+      </div>
       <MapContainer center={center} zoom={6} scrollWheelZoom={false} className="map-view">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

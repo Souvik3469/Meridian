@@ -9,6 +9,7 @@ function LocationAutocomplete({ name, label, value, onChange, placeholder, requi
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const skipNextLookupRef = useRef(false)
+  const isFocusedRef = useRef(false)
 
   useEffect(() => {
     if (skipNextLookupRef.current) {
@@ -27,7 +28,9 @@ function LocationAutocomplete({ name, label, value, onChange, placeholder, requi
       try {
         const results = await getLocationSuggestions(value, controller.signal)
         setSuggestions(results)
-        setIsOpen(results.length > 0)
+        // The field may have lost focus while this was in flight — don't
+        // force a dropdown open on a field the user has already left.
+        setIsOpen(isFocusedRef.current && results.length > 0)
         setActiveIndex(-1)
       } catch {
         // Aborted or network hiccup — suggestions are a soft affordance, fail silently.
@@ -73,8 +76,16 @@ function LocationAutocomplete({ name, label, value, onChange, placeholder, requi
           value={value}
           onChange={(event) => onChange(name, event.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => suggestions.length > 0 && setIsOpen(true)}
-          onBlur={() => setTimeout(() => setIsOpen(false), 150)}
+          onFocus={() => {
+            isFocusedRef.current = true
+          }}
+          onBlur={() => {
+            isFocusedRef.current = false
+            setTimeout(() => {
+              setIsOpen(false)
+              setSuggestions([])
+            }, 150)
+          }}
           placeholder={placeholder}
           required={required}
           autoComplete="off"

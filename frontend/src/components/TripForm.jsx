@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import LocationAutocomplete from './LocationAutocomplete'
 
 const INITIAL_VALUES = {
   current_location: '',
@@ -11,9 +12,12 @@ const INITIAL_VALUES = {
 function TripForm({ onSubmit, isSubmitting }) {
   const [values, setValues] = useState(INITIAL_VALUES)
 
-  const handleChange = (event) => {
-    const { name, value } = event.target
+  const setField = (name, value) => {
     setValues((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleChange = (event) => {
+    setField(event.target.name, event.target.value)
   }
 
   const handleSubmit = (event) => {
@@ -27,36 +31,30 @@ function TripForm({ onSubmit, isSubmitting }) {
 
   return (
     <form onSubmit={handleSubmit} className="trip-form">
-      <label>
-        Current location
-        <input
-          name="current_location"
-          value={values.current_location}
-          onChange={handleChange}
-          placeholder="Denver, CO"
-          required
-        />
-      </label>
-      <label>
-        Pickup location
-        <input
-          name="pickup_location"
-          value={values.pickup_location}
-          onChange={handleChange}
-          placeholder="Colorado Springs, CO"
-          required
-        />
-      </label>
-      <label>
-        Dropoff location
-        <input
-          name="dropoff_location"
-          value={values.dropoff_location}
-          onChange={handleChange}
-          placeholder="Albuquerque, NM"
-          required
-        />
-      </label>
+      <LocationAutocomplete
+        name="current_location"
+        label="Current location"
+        value={values.current_location}
+        onChange={setField}
+        placeholder="Denver, CO"
+        required
+      />
+      <LocationAutocomplete
+        name="pickup_location"
+        label="Pickup location"
+        value={values.pickup_location}
+        onChange={setField}
+        placeholder="Colorado Springs, CO"
+        required
+      />
+      <LocationAutocomplete
+        name="dropoff_location"
+        label="Dropoff location"
+        value={values.dropoff_location}
+        onChange={setField}
+        placeholder="Albuquerque, NM"
+        required
+      />
       <label>
         Current cycle used (hrs)
         <input

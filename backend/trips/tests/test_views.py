@@ -85,3 +85,31 @@ class PlanTripViewTests(SimpleTestCase):
     def test_routing_failure_returns_502(self, mock_geocode, mock_get_route):
         response = self.client.post("/api/trips/plan/", self.valid_payload, format="json")
         self.assertEqual(response.status_code, 502)
+
+
+class LocationAutocompleteViewTests(SimpleTestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    @patch("trips.views.autocomplete", return_value=[{"label": "Denver, CO, USA", "lat": 39.7, "lng": -105.0}])
+    def test_returns_suggestions_for_valid_query(self, mock_autocomplete):
+        response = self.client.get("/api/locations/autocomplete/", {"q": "Denv"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["results"]), 1)
+        mock_autocomplete.assert_called_once_with("Denv")
+
+    def test_short_query_skips_the_lookup_entirely(self):
+        with patch("trips.views.autocomplete") as mock_autocomplete:
+            response = self.client.get("/api/locations/autocomplete/", {"q": "De"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["results"], [])
+        mock_autocomplete.assert_not_called()
+
+    @patch("trips.views.autocomplete", side_effect=GeocodingError("boom"))
+    def test_geocoding_error_soft_fails_to_empty_results(self, mock_autocomplete):
+        response = self.client.get("/api/locations/autocomplete/", {"q": "Denver"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["results"], [])

@@ -63,6 +63,40 @@
   color: var(--ink-muted);
 }
 
+.location-autocomplete__input-wrap {
+  position: relative;
+}
+
+.location-autocomplete__suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.location-autocomplete__suggestions li {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+  color: var(--ink-primary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.location-autocomplete__suggestions li.is-active,
+.location-autocomplete__suggestions li:hover {
+  background: var(--page);
+}
+
 .trip-form button {
   grid-column: 1 / -1;
   margin-top: 0.25rem;

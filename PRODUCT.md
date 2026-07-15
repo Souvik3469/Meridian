@@ -67,11 +67,18 @@ ELD replacement.
   the schedule — including inserting a fresh mandatory rest if the delay
   pushes the driver past a duty-window limit — instead of the plan just being
   wrong from that point on.
+- **Looks and feels like a real product**, not a bare form-and-output tool: a
+  header with branding and an explicit light/dark toggle, a "how it works"
+  explainer for a first-time driver, a loading skeleton while a plan computes
+  instead of a frozen screen, and a subtle reveal animation when results
+  land.
 
 ## Problems it could solve later (real roadmap, not done yet)
 
 - **Saved trip history / driver accounts** — currently fully stateless by
-  design (see [ARCHITECTURE.md](ARCHITECTURE.md)).
+  design (see [ARCHITECTURE.md](ARCHITECTURE.md)). Deliberately deprioritized
+  in favor of the frontend polish above — revisit if drivers start asking to
+  reopen past plans rather than just re-entering a trip.
 
 ## Problems it will never fix
 

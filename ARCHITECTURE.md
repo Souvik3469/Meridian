@@ -201,14 +201,18 @@ planning flow.
 |---|---|
 | `api/tripService.js` | Fetch wrapper for `POST /api/trips/plan/` |
 | `api/locationService.js` | Fetch wrapper for `GET /api/locations/autocomplete/` |
+| `hooks/useTheme.js` | Light/dark theme state — persists an explicit user choice to `localStorage`, falling back to `prefers-color-scheme` |
+| `components/AppHeader.jsx` | Logo, title/subtitle, and the theme-toggle button |
+| `components/HowItWorks.jsx` | 3-step "how it works" explainer shown before the driver's first plan |
+| `components/ResultsSkeleton.jsx` | Shimmering placeholder shown in place of results while a plan is in flight |
 | `components/TripForm.jsx` | The trip inputs (current location + a dynamic add/remove list of pickup/dropoff stops, each with an optional delay) + submit; label switches to "Replan trip" once a result exists |
 | `components/LocationAutocomplete.jsx` | Debounced place-suggestion dropdown, used by current location and every stop's location field |
-| `components/StatTiles.jsx` | Distance / driving time / total trip time / day-count summary tiles |
+| `components/StatTiles.jsx` | Distance / driving time / total trip time / day-count summary tiles, each with an icon |
 | `components/MapView.jsx` | Leaflet map — polyline route + stop markers + "Open in Google Maps" link |
 | `components/LogSheet.jsx` | SVG renderer drawing the duty-status step-line onto the FMCSA grid for one day |
 | `components/LogSheetList.jsx` | Renders one `LogSheet` per day + the print-only trip-context line |
 | `utils/googleMapsLink.js` | Builds a Google Maps directions URL from the trip's real (non-interpolated) stops |
-| `App.jsx` | Form → loading → results orchestration, print stylesheet triggers |
+| `App.jsx` | Empty state (how-it-works + form) → loading skeleton → results orchestration, print stylesheet triggers |
 
 ## Deployment topology
 

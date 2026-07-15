@@ -1,22 +1,140 @@
 .app {
-  max-width: 840px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 2.5rem 1.5rem 4rem;
+  padding: 0 1.5rem 3rem;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-header {
-  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: color-mix(in srgb, var(--page) 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo-mark {
+  color: var(--series-current);
+  flex-shrink: 0;
 }
 
 .app-header h1 {
-  font-size: 1.75rem;
+  font-size: 1.35rem;
   letter-spacing: -0.02em;
 }
 
 .app-subtitle {
-  margin-top: 0.4rem;
+  margin-top: 0.15rem;
   color: var(--ink-secondary);
+  font-size: 0.85rem;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--ink-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--ink-primary);
+  border-color: var(--ink-muted);
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-top: 0.5rem;
+}
+
+.app-footer {
+  margin-top: auto;
+  padding-top: 2rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.layout-intro {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .layout-intro {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+.how-it-works__title {
+  font-size: 1.3rem;
+  margin-bottom: 1.25rem;
+}
+
+.how-it-works__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.how-it-works__step {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.how-it-works__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--series-current) 14%, var(--surface));
+  color: var(--series-current);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.how-it-works__step h3 {
   font-size: 0.95rem;
+  margin-bottom: 0.2rem;
+}
+
+.how-it-works__step p {
+  font-size: 0.85rem;
+  color: var(--ink-secondary);
 }
 
 .card {
@@ -25,6 +143,11 @@
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
+}
+
+.card__title {
+  font-size: 1.05rem;
+  margin-bottom: 1.15rem;
 }
 
 /* Trip form */
@@ -227,13 +350,80 @@
   color: var(--ink-primary);
 }
 
-/* Results */
+/* Loading skeleton */
 
-.results {
-  margin-top: 1.5rem;
+.skeleton {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.skeleton__tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 720px) {
+  .skeleton__tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.skeleton__block {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: linear-gradient(100deg, var(--surface) 30%, var(--page) 50%, var(--surface) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton__tile {
+  height: 76px;
+}
+
+.skeleton__map {
+  height: 380px;
+}
+
+.skeleton__sheet {
+  height: 220px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Results */
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeInUp 0.35s ease both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .results,
+  .skeleton__block {
+    animation: none;
+  }
 }
 
 .stat-tiles {
@@ -250,6 +440,11 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
+}
+
+.stat-tile__icon {
+  color: var(--series-current);
+  margin-bottom: 0.1rem;
 }
 
 .stat-tile__label {

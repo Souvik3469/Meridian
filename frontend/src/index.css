@@ -59,6 +59,50 @@
   }
 }
 
+/* Explicit user choice (via the header toggle) always wins over the OS
+   preference above, in either direction. */
+:root[data-theme='light'] {
+  --surface: #fcfcfb;
+  --page: #f9f9f7;
+  --ink-primary: #0b0b0b;
+  --ink-secondary: #52514e;
+  --ink-muted: #898781;
+  --gridline: #e1e0d9;
+  --border: rgba(11, 11, 11, 0.1);
+
+  --series-current: #2a78d6;
+  --series-pickup: #008300;
+  --series-dropoff: #e34948;
+  --series-rest: #4a3aa7;
+  --series-fuel: #eb6834;
+
+  --duty-driving: #2a78d6;
+  --duty-on-duty: #eb6834;
+  --duty-sleeper: #1baf7a;
+  --duty-off-duty: #898781;
+}
+
+:root[data-theme='dark'] {
+  --surface: #1a1a19;
+  --page: #0d0d0d;
+  --ink-primary: #ffffff;
+  --ink-secondary: #c3c2b7;
+  --ink-muted: #898781;
+  --gridline: #2c2c2a;
+  --border: rgba(255, 255, 255, 0.1);
+
+  --series-current: #3987e5;
+  --series-pickup: #008300;
+  --series-dropoff: #e66767;
+  --series-rest: #9085e9;
+  --series-fuel: #d95926;
+
+  --duty-driving: #3987e5;
+  --duty-on-duty: #d95926;
+  --duty-sleeper: #199e70;
+  --duty-off-duty: #898781;
+}
+
 * {
   box-sizing: border-box;
 }

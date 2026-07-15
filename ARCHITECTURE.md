@@ -97,9 +97,10 @@ sequenceDiagram
 ### HOS engine (`hos/engine.py`)
 
 Pure, deterministic, no I/O — walks through the trip's required activities in
-order (drive to pickup → 1hr on-duty at pickup → drive to dropoff → 1hr
-on-duty at dropoff, with fuel stops spliced in every 1,000 miles) and tracks
-state as it goes:
+order (optional off-duty block from midnight to the trip's start time → drive
+to pickup → 1hr on-duty at pickup → drive to dropoff → 1hr on-duty at
+dropoff, with fuel stops spliced in every 1,000 miles) and tracks state as it
+goes:
 
 - hours driven in the current duty day (11-hour limit)
 - time remaining in the current 14-hour on-duty window
@@ -125,7 +126,8 @@ Request:
   "current_location": "Denver, CO",
   "pickup_location": "Colorado Springs, CO",
   "dropoff_location": "Albuquerque, NM",
-  "current_cycle_used_hours": 12
+  "current_cycle_used_hours": 12,
+  "trip_start_time": "06:30"
 }
 
 Response:

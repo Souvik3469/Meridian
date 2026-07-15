@@ -48,16 +48,17 @@ ELD replacement.
 - Auto-drafts the daily log grid instead of hand-drawing it
 - Surfaces the 34-hour-restart / total-trip-time reality *before* the driver
   commits, instead of it being buried in a later day's log entry
+- **Exports/prints the log** as an actual document via the browser's print
+  dialog (dedicated print stylesheet, "Save as PDF" works) — glovebox copy or
+  handout for a roadside inspector.
+- **Real trip start-time input** — an optional field lets the driver say when
+  they're actually leaving; the log correctly shows off-duty time from
+  midnight up to that point instead of assuming the trip starts at midnight.
 
 ## Problems it could solve later (real roadmap, not done yet)
 
-- **Export/print the log** as an actual document — glovebox copy, or to hand
-  to a roadside inspector. Currently browser-view-only.
 - **Location autocomplete** instead of free-text — reduces ambiguous or
   misspelled geocoding.
-- **A real trip start-time input** — every log currently assumes the trip
-  starts at midnight, which won't match when a driver actually leaves. Not in
-  the assignment's input spec, so deliberately deferred, not an oversight.
 - **Multi-stop routes** — currently hardcoded to exactly one pickup + one
   dropoff; real dispatch often has more.
 - **Editable/recomputable plans** — "I got delayed 2 hours at pickup, replan

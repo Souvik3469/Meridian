@@ -61,7 +61,7 @@ class HOSEngine:
     """Walks through a trip's activities, inserting mandatory rests as HOS
     limits are hit, and records a flat timeline of duty status entries."""
 
-    def __init__(self, current_cycle_used_hours: float):
+    def __init__(self, current_cycle_used_hours: float, trip_start_hour: float = 0.0):
         self.clock = 0.0
         self.duty_window_start = None
         self.driving_hours_today = 0.0
@@ -70,6 +70,9 @@ class HOSEngine:
         self.miles_since_fuel = 0.0
         self.distance_traveled_miles = 0.0
         self.entries: list[LogEntry] = []
+
+        if trip_start_hour > _EPSILON:
+            self._append(DutyStatus.OFF_DUTY, trip_start_hour, "Before trip start")
 
     def drive(self, distance_miles: float, duration_hours: float, label: str) -> None:
         if duration_hours <= _EPSILON or distance_miles <= _EPSILON:
@@ -177,9 +180,10 @@ def build_duty_schedule(
     current_cycle_used_hours: float,
     to_pickup: RouteLeg,
     to_dropoff: RouteLeg,
+    trip_start_hour: float = 0.0,
 ) -> list[LogEntry]:
     """Simulates the full trip: drive to pickup, load, drive to dropoff, unload."""
-    engine = HOSEngine(current_cycle_used_hours)
+    engine = HOSEngine(current_cycle_used_hours, trip_start_hour)
     engine.drive(to_pickup.distance_miles, to_pickup.duration_hours, to_pickup.label)
     engine.on_duty(PICKUP_DROPOFF_HOURS, "Pickup")
     engine.drive(to_dropoff.distance_miles, to_dropoff.duration_hours, to_dropoff.label)

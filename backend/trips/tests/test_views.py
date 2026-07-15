@@ -54,6 +54,18 @@ class PlanTripViewTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["summary"]["requires_34_hour_restart"])
 
+    @patch("trips.planner.get_route", return_value=SAMPLE_ROUTE)
+    @patch("trips.planner.geocode", return_value=(39.7, -105.0))
+    def test_accepts_optional_trip_start_time(self, mock_geocode, mock_get_route):
+        payload = {**self.valid_payload, "trip_start_time": "06:30"}
+        response = self.client.post("/api/trips/plan/", payload, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        first_entry = body["days"][0]["entries"][0]
+        self.assertEqual(first_entry["status"], "off_duty")
+        self.assertAlmostEqual(first_entry["end_hour"], 6.5)
+
     def test_rejects_missing_fields(self):
         response = self.client.post("/api/trips/plan/", {}, format="json")
         self.assertEqual(response.status_code, 400)

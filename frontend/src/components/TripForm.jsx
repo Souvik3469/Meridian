@@ -5,6 +5,7 @@ const INITIAL_VALUES = {
   pickup_location: '',
   dropoff_location: '',
   current_cycle_used_hours: '',
+  trip_start_time: '',
 }
 
 function TripForm({ onSubmit, isSubmitting }) {
@@ -20,6 +21,7 @@ function TripForm({ onSubmit, isSubmitting }) {
     onSubmit({
       ...values,
       current_cycle_used_hours: Number(values.current_cycle_used_hours),
+      trip_start_time: values.trip_start_time || null,
     })
   }
 
@@ -67,6 +69,15 @@ function TripForm({ onSubmit, isSubmitting }) {
           onChange={handleChange}
           placeholder="0"
           required
+        />
+      </label>
+      <label>
+        Trip start time <span className="label-hint">(optional, defaults to midnight)</span>
+        <input
+          name="trip_start_time"
+          type="time"
+          value={values.trip_start_time}
+          onChange={handleChange}
         />
       </label>
       <button type="submit" disabled={isSubmitting}>

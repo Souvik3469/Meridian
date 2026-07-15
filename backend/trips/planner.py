@@ -17,6 +17,7 @@ def plan_trip(
     pickup_location: str,
     dropoff_location: str,
     current_cycle_used_hours: float,
+    trip_start_time=None,
 ) -> dict:
     current_coords = geocode(current_location)
     pickup_coords = geocode(pickup_location)
@@ -25,10 +26,13 @@ def plan_trip(
     route = get_route([current_coords, pickup_coords, dropoff_coords])
     to_pickup_leg, to_dropoff_leg = route.legs
 
+    trip_start_hour = trip_start_time.hour + trip_start_time.minute / 60 if trip_start_time else 0.0
+
     entries = build_duty_schedule(
         current_cycle_used_hours,
         RouteLeg(to_pickup_leg.distance_miles, to_pickup_leg.duration_hours, "En route to pickup"),
         RouteLeg(to_dropoff_leg.distance_miles, to_dropoff_leg.duration_hours, "En route to dropoff"),
+        trip_start_hour,
     )
 
     stops = [

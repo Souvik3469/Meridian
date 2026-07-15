@@ -73,6 +73,32 @@ class BuildDutyScheduleTests(SimpleTestCase):
         self.assertEqual(len(restart_entries), 1)
         self.assertAlmostEqual(restart_entries[0].duration, 34.0)
 
+    def test_trip_start_hour_prepends_off_duty_block(self):
+        entries = build_duty_schedule(
+            current_cycle_used_hours=0,
+            to_pickup=RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
+            to_dropoff=RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            trip_start_hour=6.5,
+        )
+
+        self.assertEqual(entries[0].status, DutyStatus.OFF_DUTY)
+        self.assertAlmostEqual(entries[0].start_hour, 0.0)
+        self.assertAlmostEqual(entries[0].end_hour, 6.5)
+        self.assertEqual(entries[1].status, DutyStatus.DRIVING)
+        self.assertAlmostEqual(entries[1].start_hour, 6.5)
+        self.assertAlmostEqual(entries[-1].end_hour, 11.5)
+
+    def test_zero_trip_start_hour_matches_default_behavior(self):
+        entries = build_duty_schedule(
+            current_cycle_used_hours=0,
+            to_pickup=RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
+            to_dropoff=RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            trip_start_hour=0.0,
+        )
+
+        self.assertEqual(entries[0].status, DutyStatus.DRIVING)
+        self.assertAlmostEqual(entries[0].start_hour, 0.0)
+
     def test_fuel_stop_inserted_every_thousand_miles(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=0,

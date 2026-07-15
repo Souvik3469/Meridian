@@ -58,6 +58,11 @@
   outline-offset: 1px;
 }
 
+.label-hint {
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
 .trip-form button {
   grid-column: 1 / -1;
   margin-top: 0.25rem;

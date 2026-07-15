@@ -88,7 +88,7 @@ sequenceDiagram
 
 | Module | Responsibility |
 |---|---|
-| `services/geocoding.py` | Wraps ORS geocode search — location text → `(lat, lng)` |
+| `services/geocoding.py` | Wraps ORS geocode search and autocomplete — location text → `(lat, lng)` / place suggestions |
 | `services/routing.py` | Wraps ORS directions API — waypoints → distance, duration, route geometry |
 | `hos/engine.py` | The rule simulator (see below) |
 | `serializers.py` | Validates the 4 request inputs |
@@ -160,12 +160,31 @@ Response:
 }
 ```
 
+```
+GET /api/locations/autocomplete/?q=Denv
+
+Response:
+{
+  "results": [
+    { "label": "Denver, CO, USA", "lat": 39.74, "lng": -104.99 },
+    ...
+  ]
+}
+```
+
+Queries under 3 characters skip the ORS call and return `results: []`
+immediately; ORS failures soft-fail to `results: []` with a 200 rather than
+surfacing an error, since suggestions are a typing affordance, not the core
+planning flow.
+
 ### Frontend modules (`frontend/src/`)
 
 | Module | Responsibility |
 |---|---|
 | `api/tripService.js` | Fetch wrapper for `POST /api/trips/plan/` |
-| `components/TripForm.jsx` | The 4 inputs + submit |
+| `api/locationService.js` | Fetch wrapper for `GET /api/locations/autocomplete/` |
+| `components/TripForm.jsx` | The trip inputs + submit |
+| `components/LocationAutocomplete.jsx` | Debounced place-suggestion dropdown, used by the 3 location fields |
 | `components/StatTiles.jsx` | Distance / driving time / total trip time / day-count summary tiles |
 | `components/MapView.jsx` | Leaflet map — polyline route + stop markers + "Open in Google Maps" link |
 | `components/LogSheet.jsx` | SVG renderer drawing the duty-status step-line onto the FMCSA grid for one day |

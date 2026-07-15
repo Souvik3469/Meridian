@@ -54,11 +54,12 @@ ELD replacement.
 - **Real trip start-time input** — an optional field lets the driver say when
   they're actually leaving; the log correctly shows off-duty time from
   midnight up to that point instead of assuming the trip starts at midnight.
+- **Location autocomplete** on all three location fields — suggests real
+  places as the driver types, reducing ambiguous or misspelled geocoding
+  before it ever reaches the routing step.
 
 ## Problems it could solve later (real roadmap, not done yet)
 
-- **Location autocomplete** instead of free-text — reduces ambiguous or
-  misspelled geocoding.
 - **Multi-stop routes** — currently hardcoded to exactly one pickup + one
   dropoff; real dispatch often has more.
 - **Editable/recomputable plans** — "I got delayed 2 hours at pickup, replan

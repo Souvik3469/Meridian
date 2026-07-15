@@ -82,9 +82,14 @@ sequenceDiagram
   driver, 70hrs/8-day cycle, no adverse driving conditions, fuel stop every
   1,000 miles, 1 hour at each stop.
 - **Stops are a generic ordered list**, not a hardcoded pickup + dropoff pair.
-  The engine treats every stop identically (drive the leg, then 1hr on-duty);
+  The engine treats every stop identically (drive the leg, then on-duty time);
   only the `type` tag (`pickup`/`dropoff`) differs, and it's used purely for
   map-marker styling, not schedule math.
+- **Plans are recomputed, not patched.** There's no partial-update endpoint —
+  an edit (e.g. a per-stop delay) just re-runs the same stateless
+  `POST /api/trips/plan/` with adjusted inputs, and the whole schedule is
+  simulated fresh. That's why a delay at one stop can correctly cascade into
+  a new mandatory rest later in the trip instead of silently going stale.
 
 ## Low-Level Design
 
@@ -120,6 +125,13 @@ emits a flat, time-ordered list of `(status, start, end, label)` entries,
 which are then split at midnight boundaries into one log sheet per calendar
 day.
 
+Each stop's on-duty time defaults to 1 hour but can be overridden per stop
+(`on_duty_hours`) — this is how a reported delay at a stop ("I got held up 2
+hours at pickup") flows through: the rest of the simulation runs from that
+extended point, so a delay that pushes the driver past a duty-window limit
+correctly inserts a new mandatory rest, rather than the plan just being wrong
+past that stop.
+
 ### API contract
 
 ```
@@ -129,7 +141,7 @@ Request:
 {
   "current_location": "Denver, CO",
   "stops": [
-    { "location": "Colorado Springs, CO", "type": "pickup" },
+    { "location": "Colorado Springs, CO", "type": "pickup", "extra_delay_hours": 2 },
     { "location": "Albuquerque, NM", "type": "dropoff" }
   ],
   "current_cycle_used_hours": 12,
@@ -189,7 +201,7 @@ planning flow.
 |---|---|
 | `api/tripService.js` | Fetch wrapper for `POST /api/trips/plan/` |
 | `api/locationService.js` | Fetch wrapper for `GET /api/locations/autocomplete/` |
-| `components/TripForm.jsx` | The trip inputs (current location + a dynamic add/remove list of pickup/dropoff stops) + submit |
+| `components/TripForm.jsx` | The trip inputs (current location + a dynamic add/remove list of pickup/dropoff stops, each with an optional delay) + submit; label switches to "Replan trip" once a result exists |
 | `components/LocationAutocomplete.jsx` | Debounced place-suggestion dropdown, used by current location and every stop's location field |
 | `components/StatTiles.jsx` | Distance / driving time / total trip time / day-count summary tiles |
 | `components/MapView.jsx` | Leaflet map — polyline route + stop markers + "Open in Google Maps" link |

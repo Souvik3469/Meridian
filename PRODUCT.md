@@ -60,11 +60,16 @@ ELD replacement.
 - **Multi-stop routes** — the trip is now an ordered list of stops (each
   tagged pickup or dropoff), not a hardcoded single pickup + single dropoff,
   matching how real dispatch chains work.
+- **Editable/recomputable plans** — each stop takes an optional delay in
+  hours; the trip form keeps its values after a plan comes back (it never
+  reset them) and the submit button relabels itself "Replan trip" once a
+  result exists. "I got delayed 2 hours at pickup" now recomputes the rest of
+  the schedule — including inserting a fresh mandatory rest if the delay
+  pushes the driver past a duty-window limit — instead of the plan just being
+  wrong from that point on.
 
 ## Problems it could solve later (real roadmap, not done yet)
 
-- **Editable/recomputable plans** — "I got delayed 2 hours at pickup, replan
-  the rest" instead of starting over.
 - **Saved trip history / driver accounts** — currently fully stateless by
   design (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 

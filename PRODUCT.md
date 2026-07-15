@@ -57,11 +57,12 @@ ELD replacement.
 - **Location autocomplete** on all three location fields — suggests real
   places as the driver types, reducing ambiguous or misspelled geocoding
   before it ever reaches the routing step.
+- **Multi-stop routes** — the trip is now an ordered list of stops (each
+  tagged pickup or dropoff), not a hardcoded single pickup + single dropoff,
+  matching how real dispatch chains work.
 
 ## Problems it could solve later (real roadmap, not done yet)
 
-- **Multi-stop routes** — currently hardcoded to exactly one pickup + one
-  dropoff; real dispatch often has more.
 - **Editable/recomputable plans** — "I got delayed 2 hours at pickup, replan
   the rest" instead of starting over.
 - **Saved trip history / driver accounts** — currently fully stateless by

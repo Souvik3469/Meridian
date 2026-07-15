@@ -4,12 +4,12 @@
 
 The app has two workers:
 
-- **The face (React frontend)** — a form where the driver enters where they are,
-  where they're picking up, where they're dropping off, and how many hours
-  they've already worked this week. It later shows a map and the filled-out
-  paper logs.
-- **The brain (Django backend)** — takes those 4 answers, asks a map service
-  for the actual route and its distance/duration, then runs a rules simulator
+- **The face (React frontend)** — a form where the driver enters where they
+  currently are, an ordered list of stops (each a pickup or a dropoff), and
+  how many hours they've already worked this week. It later shows a map and
+  the filled-out paper logs.
+- **The brain (Django backend)** — takes those inputs, asks a map service for
+  the actual route and its distance/duration, then runs a rules simulator
   that thinks like a compliance officer: "drive for a while, then legally must
   take a break, then drive more, then must stop for the night, then start a
   new day" — until the whole trip is scheduled out hour by hour. It hands back
@@ -59,7 +59,7 @@ sequenceDiagram
 
   U->>F: Submit trip form
   F->>B: POST /api/trips/plan/
-  B->>O: Geocode current / pickup / dropoff
+  B->>O: Geocode current location + each stop
   O-->>B: Coordinates
   B->>O: Directions (waypoints)
   O-->>B: Distance, duration, route geometry
@@ -80,7 +80,11 @@ sequenceDiagram
   routing, to keep API-key/quota management to one provider.
 - **Domain assumptions** (from the assignment brief): property-carrying
   driver, 70hrs/8-day cycle, no adverse driving conditions, fuel stop every
-  1,000 miles, 1 hour each for pickup and dropoff.
+  1,000 miles, 1 hour at each stop.
+- **Stops are a generic ordered list**, not a hardcoded pickup + dropoff pair.
+  The engine treats every stop identically (drive the leg, then 1hr on-duty);
+  only the `type` tag (`pickup`/`dropoff`) differs, and it's used purely for
+  map-marker styling, not schedule math.
 
 ## Low-Level Design
 
@@ -91,16 +95,16 @@ sequenceDiagram
 | `services/geocoding.py` | Wraps ORS geocode search and autocomplete — location text → `(lat, lng)` / place suggestions |
 | `services/routing.py` | Wraps ORS directions API — waypoints → distance, duration, route geometry |
 | `hos/engine.py` | The rule simulator (see below) |
-| `serializers.py` | Validates the 4 request inputs |
+| `serializers.py` | Validates the request inputs (current location, ordered stops, cycle hours, optional start time) |
 | `views.py` | Orchestrates: validate → geocode → route → run engine → shape response |
 
 ### HOS engine (`hos/engine.py`)
 
 Pure, deterministic, no I/O — walks through the trip's required activities in
 order (optional off-duty block from midnight to the trip's start time → drive
-to pickup → 1hr on-duty at pickup → drive to dropoff → 1hr on-duty at
-dropoff, with fuel stops spliced in every 1,000 miles) and tracks state as it
-goes:
+to the first stop → 1hr on-duty there → drive to the next stop → ... for
+every stop in the request, with fuel stops spliced in every 1,000 miles) and
+tracks state as it goes:
 
 - hours driven in the current duty day (11-hour limit)
 - time remaining in the current 14-hour on-duty window
@@ -124,8 +128,10 @@ POST /api/trips/plan/
 Request:
 {
   "current_location": "Denver, CO",
-  "pickup_location": "Colorado Springs, CO",
-  "dropoff_location": "Albuquerque, NM",
+  "stops": [
+    { "location": "Colorado Springs, CO", "type": "pickup" },
+    { "location": "Albuquerque, NM", "type": "dropoff" }
+  ],
   "current_cycle_used_hours": 12,
   "trip_start_time": "06:30"
 }
@@ -183,8 +189,8 @@ planning flow.
 |---|---|
 | `api/tripService.js` | Fetch wrapper for `POST /api/trips/plan/` |
 | `api/locationService.js` | Fetch wrapper for `GET /api/locations/autocomplete/` |
-| `components/TripForm.jsx` | The trip inputs + submit |
-| `components/LocationAutocomplete.jsx` | Debounced place-suggestion dropdown, used by the 3 location fields |
+| `components/TripForm.jsx` | The trip inputs (current location + a dynamic add/remove list of pickup/dropoff stops) + submit |
+| `components/LocationAutocomplete.jsx` | Debounced place-suggestion dropdown, used by current location and every stop's location field |
 | `components/StatTiles.jsx` | Distance / driving time / total trip time / day-count summary tiles |
 | `components/MapView.jsx` | Leaflet map — polyline route + stop markers + "Open in Google Maps" link |
 | `components/LogSheet.jsx` | SVG renderer drawing the duty-status step-line onto the FMCSA grid for one day |

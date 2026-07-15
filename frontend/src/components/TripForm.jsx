@@ -8,13 +8,13 @@ const INITIAL_VALUES = {
 }
 
 const INITIAL_STOPS = [
-  { location: '', type: 'pickup' },
-  { location: '', type: 'dropoff' },
+  { location: '', type: 'pickup', extra_delay_hours: '' },
+  { location: '', type: 'dropoff', extra_delay_hours: '' },
 ]
 
 const MIN_STOPS = 2
 
-function TripForm({ onSubmit, isSubmitting }) {
+function TripForm({ onSubmit, isSubmitting, hasResult }) {
   const [values, setValues] = useState(INITIAL_VALUES)
   const [stops, setStops] = useState(INITIAL_STOPS)
 
@@ -31,7 +31,7 @@ function TripForm({ onSubmit, isSubmitting }) {
   }
 
   const addStop = () => {
-    setStops((prev) => [...prev, { location: '', type: 'dropoff' }])
+    setStops((prev) => [...prev, { location: '', type: 'dropoff', extra_delay_hours: '' }])
   }
 
   const removeStop = (index) => {
@@ -42,7 +42,10 @@ function TripForm({ onSubmit, isSubmitting }) {
     event.preventDefault()
     onSubmit({
       ...values,
-      stops,
+      stops: stops.map((stop) => ({
+        ...stop,
+        extra_delay_hours: Number(stop.extra_delay_hours) || 0,
+      })),
       current_cycle_used_hours: Number(values.current_cycle_used_hours),
       trip_start_time: values.trip_start_time || null,
     })
@@ -76,6 +79,18 @@ function TripForm({ onSubmit, isSubmitting }) {
                 <option value="pickup">Pickup</option>
                 <option value="dropoff">Dropoff</option>
               </select>
+            </label>
+            <label>
+              Delay <span className="label-hint">(hrs)</span>
+              <input
+                type="number"
+                min="0"
+                max="24"
+                step="0.5"
+                placeholder="0"
+                value={stop.extra_delay_hours}
+                onChange={(event) => setStopField(index, 'extra_delay_hours', event.target.value)}
+              />
             </label>
             {stops.length > MIN_STOPS && (
               <button
@@ -118,7 +133,7 @@ function TripForm({ onSubmit, isSubmitting }) {
         />
       </label>
       <button type="submit" className="trip-form__submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Planning…' : 'Plan trip'}
+        {isSubmitting ? 'Planning…' : hasResult ? 'Replan trip' : 'Plan trip'}
       </button>
     </form>
   )

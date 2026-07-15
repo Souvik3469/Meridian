@@ -181,16 +181,29 @@ def build_duty_schedule(
     legs: list[RouteLeg],
     stop_labels: list[str],
     trip_start_hour: float = 0.0,
+    on_duty_hours: list[float] | None = None,
 ) -> list[LogEntry]:
-    """Simulates the full trip: drive to each stop in order, with 1hr on-duty
-    at each one (pickup, dropoff, or any additional stop in between)."""
+    """Simulates the full trip: drive to each stop in order, with on-duty time
+    at each one (pickup, dropoff, or any additional stop in between).
+
+    `on_duty_hours` lets a caller extend a stop past the standard 1-hour
+    pickup/dropoff assumption — e.g. a driver reporting they were delayed 2
+    hours at a stop — so the rest of the schedule can be recomputed around
+    that real delay instead of the plan just being wrong from that point on.
+    Defaults to 1 hour per stop when omitted.
+    """
     if len(legs) != len(stop_labels):
         raise ValueError("legs and stop_labels must be the same length")
 
+    if on_duty_hours is None:
+        on_duty_hours = [PICKUP_DROPOFF_HOURS] * len(legs)
+    elif len(on_duty_hours) != len(legs):
+        raise ValueError("on_duty_hours must be the same length as legs")
+
     engine = HOSEngine(current_cycle_used_hours, trip_start_hour)
-    for leg, stop_label in zip(legs, stop_labels):
+    for leg, stop_label, stop_hours in zip(legs, stop_labels, on_duty_hours):
         engine.drive(leg.distance_miles, leg.duration_hours, leg.label)
-        engine.on_duty(PICKUP_DROPOFF_HOURS, stop_label)
+        engine.on_duty(stop_hours, stop_label)
     return engine.entries
 
 

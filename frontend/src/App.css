@@ -124,7 +124,7 @@
 
 .trip-form__stop-row {
   display: grid;
-  grid-template-columns: 1fr 130px auto;
+  grid-template-columns: 1fr 110px 90px auto;
   gap: 0.75rem;
   align-items: end;
 }

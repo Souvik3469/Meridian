@@ -1,4 +1,4 @@
-from .hos.engine import RouteLeg, build_duty_schedule, split_into_days
+from .hos.engine import PICKUP_DROPOFF_HOURS, RouteLeg, build_duty_schedule, split_into_days
 from .services.geocoding import geocode
 from .services.geometry import point_at_distance
 from .services.routing import get_route
@@ -33,6 +33,7 @@ def plan_trip(
         ],
         [f"{stop['type'].capitalize()} at {stop['location']}" for stop in stops],
         trip_start_hour,
+        [PICKUP_DROPOFF_HOURS + stop.get("extra_delay_hours", 0.0) for stop in stops],
     )
 
     stops_for_map = [

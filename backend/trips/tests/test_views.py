@@ -99,6 +99,28 @@ class PlanTripViewTests(SimpleTestCase):
         self.assertIn("Albuquerque, NM", stop_labels)
         self.assertIn("Santa Fe, NM", stop_labels)
 
+    @patch("trips.planner.get_route", return_value=SAMPLE_ROUTE)
+    @patch("trips.planner.geocode", return_value=(39.7, -105.0))
+    def test_extra_delay_hours_extends_the_trip(self, mock_geocode, mock_get_route):
+        baseline = self.client.post("/api/trips/plan/", self.valid_payload, format="json").json()
+
+        delayed_payload = {
+            **self.valid_payload,
+            "stops": [
+                {"location": "Colorado Springs, CO", "type": "pickup", "extra_delay_hours": 2},
+                {"location": "Albuquerque, NM", "type": "dropoff"},
+            ],
+        }
+        response = self.client.post("/api/trips/plan/", delayed_payload, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertAlmostEqual(
+            body["summary"]["total_trip_hours"],
+            baseline["summary"]["total_trip_hours"] + 2,
+            places=3,
+        )
+
     def test_rejects_fewer_than_two_stops(self):
         payload = {**self.valid_payload, "stops": [{"location": "Colorado Springs, CO", "type": "pickup"}]}
         response = self.client.post("/api/trips/plan/", payload, format="json")

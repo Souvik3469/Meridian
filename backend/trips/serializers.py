@@ -4,6 +4,7 @@ from rest_framework import serializers
 class TripStopSerializer(serializers.Serializer):
     location = serializers.CharField(max_length=255)
     type = serializers.ChoiceField(choices=["pickup", "dropoff"])
+    extra_delay_hours = serializers.FloatField(min_value=0, max_value=24, required=False, default=0.0)
 
 
 class TripRequestSerializer(serializers.Serializer):

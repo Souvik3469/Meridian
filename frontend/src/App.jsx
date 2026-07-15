@@ -36,7 +36,7 @@ function App() {
       </header>
 
       <div className="card no-print">
-        <TripForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+        <TripForm onSubmit={handleSubmit} isSubmitting={isSubmitting} hasResult={Boolean(result)} />
       </div>
 
       {error && (

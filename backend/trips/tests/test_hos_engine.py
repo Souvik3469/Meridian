@@ -169,6 +169,35 @@ class BuildDutyScheduleTests(SimpleTestCase):
                 stop_labels=["Pickup", "Dropoff"],
             )
 
+    def test_custom_on_duty_hours_extends_a_stop(self):
+        entries = build_duty_schedule(
+            current_cycle_used_hours=0,
+            legs=[
+                RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
+                RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
+            on_duty_hours=[3.0, 1.0],
+        )
+
+        on_duty_entries = [e for e in entries if e.status == DutyStatus.ON_DUTY_NOT_DRIVING]
+        self.assertAlmostEqual(on_duty_entries[0].duration, 3.0)
+        self.assertAlmostEqual(on_duty_entries[1].duration, 1.0)
+        # 1 + 3 + 2 + 1 = 7 hours total instead of the standard 5.
+        self.assertAlmostEqual(entries[-1].end_hour, 7.0)
+
+    def test_mismatched_legs_and_on_duty_hours_raises(self):
+        with self.assertRaises(ValueError):
+            build_duty_schedule(
+                current_cycle_used_hours=0,
+                legs=[
+                    RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
+                    RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+                ],
+                stop_labels=["Pickup", "Dropoff"],
+                on_duty_hours=[3.0],
+            )
+
 
 class SplitIntoDaysTests(SimpleTestCase):
     def test_entry_spanning_midnight_is_split_across_two_days(self):

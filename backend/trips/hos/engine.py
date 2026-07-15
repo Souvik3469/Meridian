@@ -178,16 +178,19 @@ class HOSEngine:
 
 def build_duty_schedule(
     current_cycle_used_hours: float,
-    to_pickup: RouteLeg,
-    to_dropoff: RouteLeg,
+    legs: list[RouteLeg],
+    stop_labels: list[str],
     trip_start_hour: float = 0.0,
 ) -> list[LogEntry]:
-    """Simulates the full trip: drive to pickup, load, drive to dropoff, unload."""
+    """Simulates the full trip: drive to each stop in order, with 1hr on-duty
+    at each one (pickup, dropoff, or any additional stop in between)."""
+    if len(legs) != len(stop_labels):
+        raise ValueError("legs and stop_labels must be the same length")
+
     engine = HOSEngine(current_cycle_used_hours, trip_start_hour)
-    engine.drive(to_pickup.distance_miles, to_pickup.duration_hours, to_pickup.label)
-    engine.on_duty(PICKUP_DROPOFF_HOURS, "Pickup")
-    engine.drive(to_dropoff.distance_miles, to_dropoff.duration_hours, to_dropoff.label)
-    engine.on_duty(PICKUP_DROPOFF_HOURS, "Dropoff")
+    for leg, stop_label in zip(legs, stop_labels):
+        engine.drive(leg.distance_miles, leg.duration_hours, leg.label)
+        engine.on_duty(PICKUP_DROPOFF_HOURS, stop_label)
     return engine.entries
 
 

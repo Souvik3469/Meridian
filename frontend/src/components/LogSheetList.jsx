@@ -5,8 +5,7 @@ function LogSheetList({ days, tripInputs }) {
     <div className="log-sheet-list">
       {tripInputs && (
         <p className="print-only log-sheet-list__trip-context">
-          {tripInputs.current_location} &rarr; {tripInputs.pickup_location} &rarr;{' '}
-          {tripInputs.dropoff_location}
+          {[tripInputs.current_location, ...tripInputs.stops.map((stop) => stop.location)].join(' → ')}
         </p>
       )}
       {days.map((day) => (

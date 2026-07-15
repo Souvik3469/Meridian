@@ -16,14 +16,27 @@ SAMPLE_ROUTE = RouteResult(
     ],
 )
 
+SAMPLE_ROUTE_THREE_STOPS = RouteResult(
+    distance_miles=720.0,
+    duration_hours=12.0,
+    geometry=[(39.7, -105.0), (36.0, -104.0), (35.1, -106.6), (33.4, -108.1)],
+    legs=[
+        RouteLegResult(distance_miles=70.0, duration_hours=1.2),
+        RouteLegResult(distance_miles=450.0, duration_hours=7.8),
+        RouteLegResult(distance_miles=200.0, duration_hours=3.0),
+    ],
+)
+
 
 class PlanTripViewTests(SimpleTestCase):
     def setUp(self):
         self.client = APIClient()
         self.valid_payload = {
             "current_location": "Denver, CO",
-            "pickup_location": "Colorado Springs, CO",
-            "dropoff_location": "Albuquerque, NM",
+            "stops": [
+                {"location": "Colorado Springs, CO", "type": "pickup"},
+                {"location": "Albuquerque, NM", "type": "dropoff"},
+            ],
             "current_cycle_used_hours": 10,
         }
 
@@ -65,6 +78,31 @@ class PlanTripViewTests(SimpleTestCase):
         first_entry = body["days"][0]["entries"][0]
         self.assertEqual(first_entry["status"], "off_duty")
         self.assertAlmostEqual(first_entry["end_hour"], 6.5)
+
+    @patch("trips.planner.get_route", return_value=SAMPLE_ROUTE_THREE_STOPS)
+    @patch("trips.planner.geocode", return_value=(39.7, -105.0))
+    def test_accepts_more_than_two_stops(self, mock_geocode, mock_get_route):
+        payload = {
+            **self.valid_payload,
+            "stops": [
+                {"location": "Colorado Springs, CO", "type": "pickup"},
+                {"location": "Albuquerque, NM", "type": "dropoff"},
+                {"location": "Santa Fe, NM", "type": "pickup"},
+            ],
+        }
+        response = self.client.post("/api/trips/plan/", payload, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        stop_labels = {stop["label"] for stop in body["route"]["stops"]}
+        self.assertIn("Colorado Springs, CO", stop_labels)
+        self.assertIn("Albuquerque, NM", stop_labels)
+        self.assertIn("Santa Fe, NM", stop_labels)
+
+    def test_rejects_fewer_than_two_stops(self):
+        payload = {**self.valid_payload, "stops": [{"location": "Colorado Springs, CO", "type": "pickup"}]}
+        response = self.client.post("/api/trips/plan/", payload, format="json")
+        self.assertEqual(response.status_code, 400)
 
     def test_rejects_missing_fields(self):
         response = self.client.post("/api/trips/plan/", {}, format="json")

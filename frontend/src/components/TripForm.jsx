@@ -3,14 +3,20 @@ import LocationAutocomplete from './LocationAutocomplete'
 
 const INITIAL_VALUES = {
   current_location: '',
-  pickup_location: '',
-  dropoff_location: '',
   current_cycle_used_hours: '',
   trip_start_time: '',
 }
 
+const INITIAL_STOPS = [
+  { location: '', type: 'pickup' },
+  { location: '', type: 'dropoff' },
+]
+
+const MIN_STOPS = 2
+
 function TripForm({ onSubmit, isSubmitting }) {
   const [values, setValues] = useState(INITIAL_VALUES)
+  const [stops, setStops] = useState(INITIAL_STOPS)
 
   const setField = (name, value) => {
     setValues((prev) => ({ ...prev, [name]: value }))
@@ -20,10 +26,23 @@ function TripForm({ onSubmit, isSubmitting }) {
     setField(event.target.name, event.target.value)
   }
 
+  const setStopField = (index, field, value) => {
+    setStops((prev) => prev.map((stop, i) => (i === index ? { ...stop, [field]: value } : stop)))
+  }
+
+  const addStop = () => {
+    setStops((prev) => [...prev, { location: '', type: 'dropoff' }])
+  }
+
+  const removeStop = (index) => {
+    setStops((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = (event) => {
     event.preventDefault()
     onSubmit({
       ...values,
+      stops,
       current_cycle_used_hours: Number(values.current_cycle_used_hours),
       trip_start_time: values.trip_start_time || null,
     })
@@ -39,22 +58,42 @@ function TripForm({ onSubmit, isSubmitting }) {
         placeholder="Denver, CO"
         required
       />
-      <LocationAutocomplete
-        name="pickup_location"
-        label="Pickup location"
-        value={values.pickup_location}
-        onChange={setField}
-        placeholder="Colorado Springs, CO"
-        required
-      />
-      <LocationAutocomplete
-        name="dropoff_location"
-        label="Dropoff location"
-        value={values.dropoff_location}
-        onChange={setField}
-        placeholder="Albuquerque, NM"
-        required
-      />
+
+      <div className="trip-form__stops">
+        {stops.map((stop, index) => (
+          <div key={index} className="trip-form__stop-row">
+            <LocationAutocomplete
+              name={`stop-location-${index}`}
+              label={`Stop ${index + 1} location`}
+              value={stop.location}
+              onChange={(_, value) => setStopField(index, 'location', value)}
+              placeholder={index === 0 ? 'Colorado Springs, CO' : 'Albuquerque, NM'}
+              required
+            />
+            <label>
+              Type
+              <select value={stop.type} onChange={(event) => setStopField(index, 'type', event.target.value)}>
+                <option value="pickup">Pickup</option>
+                <option value="dropoff">Dropoff</option>
+              </select>
+            </label>
+            {stops.length > MIN_STOPS && (
+              <button
+                type="button"
+                className="trip-form__remove-stop"
+                onClick={() => removeStop(index)}
+                aria-label={`Remove stop ${index + 1}`}
+              >
+                &times;
+              </button>
+            )}
+          </div>
+        ))}
+        <button type="button" className="trip-form__add-stop" onClick={addStop}>
+          + Add stop
+        </button>
+      </div>
+
       <label>
         Current cycle used (hrs)
         <input
@@ -78,7 +117,7 @@ function TripForm({ onSubmit, isSubmitting }) {
           onChange={handleChange}
         />
       </label>
-      <button type="submit" disabled={isSubmitting}>
+      <button type="submit" className="trip-form__submit" disabled={isSubmitting}>
         {isSubmitting ? 'Planning…' : 'Plan trip'}
       </button>
     </form>

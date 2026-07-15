@@ -12,8 +12,11 @@ class BuildDutyScheduleTests(SimpleTestCase):
     def test_short_trip_needs_no_rest(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=0,
-            to_pickup=RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
-            to_dropoff=RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            legs=[
+                RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
+                RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
         )
 
         statuses = [e.status for e in entries]
@@ -31,8 +34,11 @@ class BuildDutyScheduleTests(SimpleTestCase):
     def test_break_inserted_after_eight_hours_driving(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=0,
-            to_pickup=RouteLeg(distance_miles=500, duration_hours=10, label="long haul"),
-            to_dropoff=RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            legs=[
+                RouteLeg(distance_miles=500, duration_hours=10, label="long haul"),
+                RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
         )
 
         driving_entries = [e for e in entries if e.status == DutyStatus.DRIVING]
@@ -49,8 +55,11 @@ class BuildDutyScheduleTests(SimpleTestCase):
     def test_ten_hour_reset_inserted_after_eleven_hours_driving(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=0,
-            to_pickup=RouteLeg(distance_miles=650, duration_hours=13, label="very long haul"),
-            to_dropoff=RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            legs=[
+                RouteLeg(distance_miles=650, duration_hours=13, label="very long haul"),
+                RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
         )
 
         reset_entries = [e for e in entries if e.label == "10-hour rest period"]
@@ -65,8 +74,11 @@ class BuildDutyScheduleTests(SimpleTestCase):
     def test_thirty_four_hour_restart_when_cycle_exhausted(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=68,
-            to_pickup=RouteLeg(distance_miles=150, duration_hours=3, label="short haul"),
-            to_dropoff=RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            legs=[
+                RouteLeg(distance_miles=150, duration_hours=3, label="short haul"),
+                RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
         )
 
         restart_entries = [e for e in entries if e.label == "34-hour restart"]
@@ -76,8 +88,11 @@ class BuildDutyScheduleTests(SimpleTestCase):
     def test_trip_start_hour_prepends_off_duty_block(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=0,
-            to_pickup=RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
-            to_dropoff=RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            legs=[
+                RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
+                RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
             trip_start_hour=6.5,
         )
 
@@ -91,8 +106,11 @@ class BuildDutyScheduleTests(SimpleTestCase):
     def test_zero_trip_start_hour_matches_default_behavior(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=0,
-            to_pickup=RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
-            to_dropoff=RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            legs=[
+                RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
+                RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
             trip_start_hour=0.0,
         )
 
@@ -102,20 +120,65 @@ class BuildDutyScheduleTests(SimpleTestCase):
     def test_fuel_stop_inserted_every_thousand_miles(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=0,
-            to_pickup=RouteLeg(distance_miles=1200, duration_hours=20, label="cross-country"),
-            to_dropoff=RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            legs=[
+                RouteLeg(distance_miles=1200, duration_hours=20, label="cross-country"),
+                RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
         )
 
         fuel_stops = [e for e in entries if e.label == "Fuel stop"]
         self.assertEqual(len(fuel_stops), 1)
+
+    def test_more_than_two_stops_each_get_an_on_duty_block(self):
+        entries = build_duty_schedule(
+            current_cycle_used_hours=0,
+            legs=[
+                RouteLeg(distance_miles=50, duration_hours=1, label="leg 1"),
+                RouteLeg(distance_miles=60, duration_hours=1, label="leg 2"),
+                RouteLeg(distance_miles=70, duration_hours=1, label="leg 3"),
+                RouteLeg(distance_miles=80, duration_hours=1, label="leg 4"),
+            ],
+            stop_labels=["Pickup A", "Dropoff A", "Pickup B", "Dropoff B"],
+        )
+
+        statuses = [e.status for e in entries]
+        self.assertEqual(
+            statuses,
+            [
+                DutyStatus.DRIVING,
+                DutyStatus.ON_DUTY_NOT_DRIVING,
+                DutyStatus.DRIVING,
+                DutyStatus.ON_DUTY_NOT_DRIVING,
+                DutyStatus.DRIVING,
+                DutyStatus.ON_DUTY_NOT_DRIVING,
+                DutyStatus.DRIVING,
+                DutyStatus.ON_DUTY_NOT_DRIVING,
+            ],
+        )
+        on_duty_labels = [e.label for e in entries if e.status == DutyStatus.ON_DUTY_NOT_DRIVING]
+        self.assertEqual(on_duty_labels, ["Pickup A", "Dropoff A", "Pickup B", "Dropoff B"])
+        # 4 driving hours + 4 one-hour stops.
+        self.assertAlmostEqual(entries[-1].end_hour, 8.0)
+
+    def test_mismatched_legs_and_labels_raises(self):
+        with self.assertRaises(ValueError):
+            build_duty_schedule(
+                current_cycle_used_hours=0,
+                legs=[RouteLeg(distance_miles=50, duration_hours=1, label="leg 1")],
+                stop_labels=["Pickup", "Dropoff"],
+            )
 
 
 class SplitIntoDaysTests(SimpleTestCase):
     def test_entry_spanning_midnight_is_split_across_two_days(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=0,
-            to_pickup=RouteLeg(distance_miles=1100, duration_hours=22, label="overnight haul"),
-            to_dropoff=RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            legs=[
+                RouteLeg(distance_miles=1100, duration_hours=22, label="overnight haul"),
+                RouteLeg(distance_miles=0, duration_hours=0, label="n/a"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
         )
 
         days = split_into_days(entries)
@@ -131,8 +194,11 @@ class SplitIntoDaysTests(SimpleTestCase):
     def test_daily_totals_sum_to_day_length(self):
         entries = build_duty_schedule(
             current_cycle_used_hours=0,
-            to_pickup=RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
-            to_dropoff=RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            legs=[
+                RouteLeg(distance_miles=50, duration_hours=1, label="to pickup"),
+                RouteLeg(distance_miles=100, duration_hours=2, label="to dropoff"),
+            ],
+            stop_labels=["Pickup", "Dropoff"],
         )
 
         days = split_into_days(entries)

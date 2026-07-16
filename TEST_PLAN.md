@@ -2,7 +2,7 @@
 
 Run these yourself at **http://localhost:5173** with the backend running at
 **http://localhost:8000** (see [README.md](README.md) for setup). Automated
-tests (26, all passing — run `python manage.py test trips` in `backend/`)
+tests (42, all passing — run `python manage.py test trips` in `backend/`)
 already cover the HOS engine's logic in isolation with synthetic inputs —
 this plan is about verifying the **real, live, end-to-end** behavior: real
 geocoding, real routes, real rendering.
@@ -13,6 +13,13 @@ number is given below, it's from a verified run — use it as a strong
 reference, not a brittle assertion. Where it says "check the rule," verify
 the *relationship* holds against whatever real numbers come back, not a
 specific number.
+
+A note on field names: Tiers 1–4 below were written before the trip form
+grew a dynamic stop list. Where a test says "pickup = X, dropoff = Y", enter
+X into **Stop 1 location** (Type: Pickup) and Y into **Stop 2 location**
+(Type: Dropoff) — a 2-stop trip is still the default shape, it's just no
+longer two hardcoded fields. Tier 7 covers the stop list, delay/replan,
+autocomplete, start time, and UI-revamp behavior specifically.
 
 ---
 
@@ -170,7 +177,7 @@ This test re-confirms that fix holds for a different failure cause
 (unresolvable location vs. missing credentials).
 
 ### TC-13: Empty required field
-**Action:** leave "Pickup location" blank and click "Plan trip"
+**Action:** leave "Stop 1 location" blank and click "Plan trip"
 
 **Expected:** the browser blocks submission natively (HTML5 `required`
 validation) — no network request should fire at all.
@@ -202,14 +209,15 @@ rendered outside the 0–24 axis.
 
 | Check | How to test | Expected |
 |---|---|---|
-| Loading state | Throttle network in DevTools, submit | Button reads "Planning…" and is disabled until the response returns |
+| Loading state | Throttle network in DevTools, submit | A shimmering skeleton (stat tiles + map + log sheet shapes) replaces the results area; button reads "Planning…" and is disabled until the response returns |
 | Error doesn't nuke the form | Trigger TC-12, then look at the form | Your typed inputs are still there — only the result area shows the error |
 | Responsive layout | Resize the browser to ~400px wide | Form fields, stat tiles, and log-sheet totals collapse to a single column (not clipped/overlapping) |
-| Dark mode | Toggle OS/browser dark mode, reload | Colors flip to the dark palette; text stays legible; map tiles/markers still visible |
+| Dark mode toggle | Click the moon/sun icon in the header | Colors flip to the dark palette immediately; text stays legible; map tiles/markers still visible; reload the page and confirm it stayed on your chosen theme (doesn't revert to OS preference) |
 | Color isn't the only signal | Look at the error/warning alerts and log sheet rows | Each colored element also has a text label or icon next to it (never color-only meaning) |
 | Legend consistency | Compare map legend dots to log-sheet row dots | Categories (rest/fuel on map; duty statuses on log sheet) use one fixed color per category everywhere it appears |
 | Multi-day readability | Run TC-7 | Each day gets its own clearly separated card; you can tell which card is which day at a glance |
 | Log sheet stays legible on mobile | Resize to ~375px wide | Hour labels/text stay full-size and the chart scrolls horizontally, instead of shrinking to illegible |
+| First-time onboarding | Load the app fresh (before ever planning a trip) | A "How it works" 3-step explainer shows next to the form; after your first successful plan, it's gone and doesn't come back for the rest of the session |
 
 ## Tier 6 — Export & external navigation (added after initial build)
 
@@ -240,6 +248,68 @@ interpolated points that aren't real stopping locations.
 
 ---
 
+## Tier 7 — Feature additions (start time, autocomplete, multi-stop, replan)
+
+### TC-18: Trip start time shifts the first day's log
+**Inputs:** same as TC-3, but also set "Trip start time" to `06:30`
+
+**Expected:** Day 1's log sheet shows an `off_duty` step-line from Midnight to
+6 AM (visually flat along the Off Duty row), then the first `driving` block
+starts at 6:30, not at Midnight. Compare against TC-3 (no start time set) —
+that one's first block starts right at Midnight.
+
+**Why:** confirms `trip_start_time` actually seeds the schedule instead of
+being accepted and ignored, and that the "before the trip starts" gap renders
+instead of just being invisible/missing time on the grid.
+
+### TC-19: Location autocomplete
+**Action:** click into "Current location" and type `Denv` (3+ characters)
+
+**Expected:** a dropdown appears within ~1–2 seconds listing real places
+(e.g. "Denver, CO, USA"). Clicking one fills the field with the full label
+and closes the dropdown. Typing only 1–2 characters (`De`) should **not**
+trigger a dropdown. Press `Escape` while a dropdown is open — it closes.
+
+**Why:** verifies the debounced `GET /api/locations/autocomplete/` call, the
+3-character minimum, and that keyboard dismissal works — this field feeds
+directly into geocoding, so a wrong/misspelled selection here breaks
+everything downstream.
+
+### TC-20: Multi-stop route (more than one pickup/dropoff)
+**Action:** click "+ Add stop" once (three stop rows total). Fill: Stop 1 =
+`Colorado Springs, CO` (Pickup), Stop 2 = `Albuquerque, NM` (Dropoff), Stop 3
+= `Santa Fe, NM` (Dropoff). Current location = `Denver, CO`, cycle used = `0`.
+
+**Expected:** HTTP 200, route passes through all 4 points in order (current →
+stop1 → stop2 → stop3), the map shows a pickup marker and **two** dropoff
+markers, and "Open in Google Maps" produces a link with two waypoints (not
+just one). Try removing a stop with the "×" button — it disappears and the
+route recomputes on next submit. The "×" should **not** appear when only 2
+stops remain (minimum is current + 2 stops).
+
+**Why:** this is the core generalization from a hardcoded pickup/dropoff pair
+to an arbitrary ordered list — confirms both the add and remove paths work
+and that the map/Google-Maps-link code handles more than 2 real stops.
+
+### TC-21: Editable/recomputable plan (delay + replan)
+**Action:** run TC-3 (or any valid trip) to get a first result. Note the
+"Total trip time" stat. Without touching the location fields, enter `2` into
+the "Delay (hrs)" field next to Stop 1, then click the button again (it
+should now read **"Replan trip"**, not "Plan trip").
+
+**Expected:** a new plan comes back with a **larger** total trip time —
+often by more than just the 2 hours you added, if the delay pushes the
+driver past the 14-hour window or 11-hour driving limit (in which case a
+whole extra 10-hour rest gets inserted). The current/stop location fields
+you already filled in are untouched — you never had to retype the trip.
+
+**Why:** this is the literal "I got delayed 2 hours at pickup, replan the
+rest" scenario from the roadmap. The size of the total-time jump (2 hours vs.
+12+ hours) is itself informative — a jump bigger than the delay you entered
+means a new mandatory rest was correctly triggered, not a bug.
+
+---
+
 ## Testing at the API level directly (optional, for backend-only checks)
 
 ```bash
@@ -247,8 +317,10 @@ curl -s -X POST http://localhost:8000/api/trips/plan/ \
   -H "Content-Type: application/json" \
   -d '{
     "current_location": "Denver, CO",
-    "pickup_location": "Colorado Springs, CO",
-    "dropoff_location": "Albuquerque, NM",
+    "stops": [
+      { "location": "Colorado Springs, CO", "type": "pickup" },
+      { "location": "Albuquerque, NM", "type": "dropoff" }
+    ],
     "current_cycle_used_hours": 10
   }' | python3 -m json.tool
 ```
@@ -265,7 +337,7 @@ Yes — mapping directly to the brief:
 
 | Assignment requirement | Where it's covered |
 |---|---|
-| Inputs: current, pickup, dropoff, current cycle used (hrs) | Exactly the 4 form fields — TC-1 through TC-15 all exercise these |
+| Inputs: current, pickup, dropoff, current cycle used (hrs) | The original 4 fields — TC-1 through TC-15 all exercise these (now current + a stop list, see the field-name note above) |
 | Output: map with route + stops/rests, using a free map API | Leaflet + OpenStreetMap tiles (free) + OpenRouteService routing (free tier) — TC-1, TC-6 |
 | Output: daily log sheets drawn out, multiple sheets for longer trips | `LogSheet`/`LogSheetList` — TC-5, TC-7, TC-15 specifically test the multi-sheet and midnight-split behavior |
 | Assumption: 70hr/8-day cycle, property-carrying driver | TC-4, TC-8, TC-9, TC-10 directly target this limit |
@@ -274,9 +346,10 @@ Yes — mapping directly to the brief:
 | "We will test the hosted version for accuracy" | Tiers 2–4 are precisely an accuracy audit of the HOS rule engine against the real regulations |
 | "UI and UX must be good... can compensate for some inaccuracies" | Tier 5 — this is graded independently of correctness, so don't skip it even if Tiers 1–4 all pass |
 
-Tier 6 (print export, Google Maps link) goes beyond the assignment's literal
-input/output spec — they came out of a product-usability discussion, not the
-brief itself. See [PRODUCT.md](PRODUCT.md) for that reasoning.
+Tier 6 (print export, Google Maps link) and Tier 7 (start time, autocomplete,
+multi-stop, editable/recomputable plans) both go beyond the assignment's
+literal input/output spec — they came out of a product-roadmap discussion,
+not the brief itself. See [PRODUCT.md](PRODUCT.md) for that reasoning.
 
 The one thing this plan **can't** validate for you: whether the *hosted*
 version (once deployed to Render/Vercel) behaves identically to localhost —

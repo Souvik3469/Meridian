@@ -190,6 +190,37 @@
   position: relative;
 }
 
+.location-autocomplete__input-wrap input {
+  width: 100%;
+  padding-right: 2.1rem;
+}
+
+.location-autocomplete__spinner {
+  position: absolute;
+  top: 50%;
+  right: 0.65rem;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border: 2px solid var(--border);
+  border-top-color: var(--series-current);
+  border-radius: 50%;
+  animation: location-spin 0.7s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes location-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .location-autocomplete__spinner {
+    animation: none;
+  }
+}
+
 .location-autocomplete__suggestions {
   position: absolute;
   top: calc(100% + 4px);

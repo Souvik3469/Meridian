@@ -7,9 +7,11 @@ const MIN_QUERY_LENGTH = 3
 function LocationAutocomplete({ name, label, value, onChange, placeholder, required }) {
   const [suggestions, setSuggestions] = useState([])
   const [isOpen, setIsOpen] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const skipNextLookupRef = useRef(false)
   const isFocusedRef = useRef(false)
+  const requestIdRef = useRef(0)
 
   useEffect(() => {
     if (skipNextLookupRef.current) {
@@ -20,20 +22,30 @@ function LocationAutocomplete({ name, label, value, onChange, placeholder, requi
     if (value.trim().length < MIN_QUERY_LENGTH) {
       setSuggestions([])
       setIsOpen(false)
+      setIsSearching(false)
       return
     }
+
+    // Guards against a slower, now-stale request resolving after a newer
+    // one — without this, a fast second keystroke's spinner could get
+    // turned off by the first keystroke's request finishing later.
+    const requestId = ++requestIdRef.current
+    setIsSearching(true)
 
     const controller = new AbortController()
     const timer = setTimeout(async () => {
       try {
         const results = await getLocationSuggestions(value, controller.signal)
+        if (requestIdRef.current !== requestId) return
         setSuggestions(results)
         // The field may have lost focus while this was in flight — don't
         // force a dropdown open on a field the user has already left.
         setIsOpen(isFocusedRef.current && results.length > 0)
         setActiveIndex(-1)
+        setIsSearching(false)
       } catch {
         // Aborted or network hiccup — suggestions are a soft affordance, fail silently.
+        if (requestIdRef.current === requestId) setIsSearching(false)
       }
     }, DEBOUNCE_MS)
 
@@ -84,6 +96,7 @@ function LocationAutocomplete({ name, label, value, onChange, placeholder, requi
             setTimeout(() => {
               setIsOpen(false)
               setSuggestions([])
+              setIsSearching(false)
             }, 150)
           }}
           placeholder={placeholder}
@@ -92,7 +105,11 @@ function LocationAutocomplete({ name, label, value, onChange, placeholder, requi
           role="combobox"
           aria-expanded={isOpen}
           aria-autocomplete="list"
+          aria-busy={isSearching}
         />
+        {isSearching && (
+          <span className="location-autocomplete__spinner" aria-hidden="true" />
+        )}
         {isOpen && (
           <ul className="location-autocomplete__suggestions" role="listbox">
             {suggestions.map((suggestion, index) => (

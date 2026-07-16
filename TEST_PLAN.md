@@ -265,15 +265,21 @@ instead of just being invisible/missing time on the grid.
 ### TC-19: Location autocomplete
 **Action:** click into "Current location" and type `Denv` (3+ characters)
 
-**Expected:** a dropdown appears within ~1–2 seconds listing real places
-(e.g. "Denver, CO, USA"). Clicking one fills the field with the full label
-and closes the dropdown. Typing only 1–2 characters (`De`) should **not**
-trigger a dropdown. Press `Escape` while a dropdown is open — it closes.
+**Expected:** a small spinner appears inside the right edge of the field
+almost immediately (within the debounce delay), before any dropdown shows —
+this is your only signal that a search is happening. A dropdown then appears
+within ~1–2 seconds listing real places (e.g. "Denver, CO, USA"), and the
+spinner disappears the moment it does. Clicking a suggestion fills the field
+with the full label and closes the dropdown. Typing only 1–2 characters
+(`De`) should **not** show a spinner or trigger a dropdown. Press `Escape`
+while a dropdown is open — it closes (the spinner, if a request is still in
+flight, is unaffected).
 
 **Why:** verifies the debounced `GET /api/locations/autocomplete/` call, the
-3-character minimum, and that keyboard dismissal works — this field feeds
-directly into geocoding, so a wrong/misspelled selection here breaks
-everything downstream.
+3-character minimum, the loading indicator that closes the "is it searching
+or not?" gap, and that keyboard dismissal works — this field feeds directly
+into geocoding, so a wrong/misspelled selection here breaks everything
+downstream.
 
 ### TC-20: Multi-stop route (more than one pickup/dropoff)
 **Action:** click "+ Add stop" once (three stop rows total). Fill: Stop 1 =

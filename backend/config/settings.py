@@ -154,3 +154,19 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Third-party API keys (OpenRouteService for geocoding + routing)
 OPENROUTESERVICE_API_KEY = os.environ.get('OPENROUTESERVICE_API_KEY', '')
+
+
+# Rate limiting — every trip-plan/autocomplete request costs a paid
+# OpenRouteService API call, so these two endpoints get a per-IP throttle to
+# cap worst-case cost from a bug, bot, or single heavy user. Uses Django's
+# default local-memory cache; fine for a single-process deployment, but
+# counts won't be shared across gunicorn workers if that changes later.
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'trip_plan': os.environ.get('TRIP_PLAN_THROTTLE_RATE', '20/minute'),
+        'location_autocomplete': os.environ.get('AUTOCOMPLETE_THROTTLE_RATE', '60/minute'),
+    },
+}

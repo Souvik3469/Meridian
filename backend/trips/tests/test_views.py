@@ -1,10 +1,31 @@
 from unittest.mock import patch
 
+from django.core.cache import cache as django_cache
 from django.test import SimpleTestCase
 from rest_framework.test import APIClient
+from rest_framework.throttling import SimpleRateThrottle
 
 from trips.services.exceptions import GeocodingError, RoutingError
 from trips.services.routing import RouteLegResult, RouteResult
+
+# Functional tests below aren't testing rate limiting — they'd be flaky if a
+# growing number of them ever crossed the real production throttle rate, since
+# DRF's throttle counters share one process-wide cache across every test in
+# this file. Each TestCase's setUp() patches the rate generously high instead.
+#
+# Note: `override_settings(REST_FRAMEWORK=...)` does NOT work for this —
+# `SimpleRateThrottle.THROTTLE_RATES` is bound to `api_settings.DEFAULT_THROTTLE_RATES`
+# once at class-definition (import) time, so it's a stale reference by the
+# time a test runs. `patch.object` on the class attribute directly is what
+# actually takes effect.
+UNTHROTTLED_RATES = {'trip_plan': '1000/minute', 'location_autocomplete': '1000/minute'}
+
+
+def _patch_throttle_rates(test_case, rates):
+    patcher = patch.object(SimpleRateThrottle, 'THROTTLE_RATES', rates)
+    patcher.start()
+    test_case.addCleanup(patcher.stop)
+
 
 SAMPLE_ROUTE = RouteResult(
     distance_miles=520.0,
@@ -30,6 +51,7 @@ SAMPLE_ROUTE_THREE_STOPS = RouteResult(
 
 class PlanTripViewTests(SimpleTestCase):
     def setUp(self):
+        _patch_throttle_rates(self, UNTHROTTLED_RATES)
         self.client = APIClient()
         self.valid_payload = {
             "current_location": "Denver, CO",
@@ -149,6 +171,7 @@ class PlanTripViewTests(SimpleTestCase):
 
 class LocationAutocompleteViewTests(SimpleTestCase):
     def setUp(self):
+        _patch_throttle_rates(self, UNTHROTTLED_RATES)
         self.client = APIClient()
 
     @patch("trips.views.autocomplete", return_value=[{"label": "Denver, CO, USA", "lat": 39.7, "lng": -105.0}])
@@ -173,3 +196,42 @@ class LocationAutocompleteViewTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["results"], [])
+
+
+class ThrottlingTests(SimpleTestCase):
+    """Every request here costs a paid OpenRouteService call in production,
+    so both endpoints are rate-limited per IP. cache.clear() in setUp is
+    required — DRF throttle counters live in one process-wide cache shared
+    with every other test in this file."""
+
+    def setUp(self):
+        _patch_throttle_rates(self, {'trip_plan': '2/minute', 'location_autocomplete': '2/minute'})
+        self.client = APIClient()
+        django_cache.clear()
+        self.valid_payload = {
+            "current_location": "Denver, CO",
+            "stops": [
+                {"location": "Colorado Springs, CO", "type": "pickup"},
+                {"location": "Albuquerque, NM", "type": "dropoff"},
+            ],
+            "current_cycle_used_hours": 10,
+        }
+
+    @patch("trips.planner.get_route", return_value=SAMPLE_ROUTE)
+    @patch("trips.planner.geocode", return_value=(39.7, -105.0))
+    def test_trip_plan_endpoint_is_rate_limited(self, mock_geocode, mock_get_route):
+        for _ in range(2):
+            response = self.client.post("/api/trips/plan/", self.valid_payload, format="json")
+            self.assertEqual(response.status_code, 200)
+
+        response = self.client.post("/api/trips/plan/", self.valid_payload, format="json")
+        self.assertEqual(response.status_code, 429)
+
+    @patch("trips.views.autocomplete", return_value=[])
+    def test_autocomplete_endpoint_is_rate_limited(self, mock_autocomplete):
+        for _ in range(2):
+            response = self.client.get("/api/locations/autocomplete/", {"q": "Denver"})
+            self.assertEqual(response.status_code, 200)
+
+        response = self.client.get("/api/locations/autocomplete/", {"q": "Denver"})
+        self.assertEqual(response.status_code, 429)

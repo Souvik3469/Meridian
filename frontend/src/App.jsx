@@ -38,20 +38,17 @@ function App() {
       <AppHeader theme={theme} onToggleTheme={toggleTheme} />
 
       <main className="app-main">
-        {hasPlannedOnce ? (
+        {/* TripForm must stay at a stable position/type across this toggle — a
+            ternary between two differently-shaped subtrees here previously
+            caused React to unmount/remount TripForm (losing all its state)
+            the moment hasPlannedOnce flipped after the first successful plan. */}
+        <div className={hasPlannedOnce ? undefined : 'layout-intro'}>
+          {!hasPlannedOnce && <HowItWorks />}
           <div className="card trip-form-card no-print">
-            <h2 className="card__title">Trip details</h2>
+            <h2 className="card__title">{hasPlannedOnce ? 'Trip details' : 'Plan your trip'}</h2>
             <TripForm onSubmit={handleSubmit} isSubmitting={isSubmitting} hasResult={Boolean(result)} />
           </div>
-        ) : (
-          <div className="layout-intro">
-            <HowItWorks />
-            <div className="card trip-form-card no-print">
-              <h2 className="card__title">Plan your trip</h2>
-              <TripForm onSubmit={handleSubmit} isSubmitting={isSubmitting} hasResult={Boolean(result)} />
-            </div>
-          </div>
-        )}
+        </div>
 
         {error && (
           <div className="alert alert--critical no-print" role="alert">

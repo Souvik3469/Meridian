@@ -65,6 +65,15 @@ function App() {
 
         {result && !isSubmitting && (
           <div className="results">
+            <div className="alert alert--info no-print" role="note">
+              <span className="alert__icon alert__icon--info" aria-hidden="true">
+                i
+              </span>
+              <span>
+                This is a planning estimate, not an official duty record. Confirm actual
+                hours with your certified ELD before driving.
+              </span>
+            </div>
             {result.summary.requires_34_hour_restart && (
               <div className="alert alert--warning no-print" role="alert">
                 <span className="alert__icon alert__icon--warning" aria-hidden="true">

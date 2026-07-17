@@ -14,6 +14,17 @@ const INITIAL_STOPS = [
 
 const MIN_STOPS = 2
 
+const EXAMPLE_VALUES = {
+  current_location: 'Denver, CO',
+  current_cycle_used_hours: '10',
+  trip_start_time: '',
+}
+
+const EXAMPLE_STOPS = [
+  { location: 'Colorado Springs, CO', type: 'pickup', extra_delay_hours: '' },
+  { location: 'Albuquerque, NM', type: 'dropoff', extra_delay_hours: '' },
+]
+
 function TripForm({ onSubmit, isSubmitting, hasResult }) {
   const [values, setValues] = useState(INITIAL_VALUES)
   const [stops, setStops] = useState(INITIAL_STOPS)
@@ -38,17 +49,25 @@ function TripForm({ onSubmit, isSubmitting, hasResult }) {
     setStops((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const buildPayload = (formValues, formStops) => ({
+    ...formValues,
+    stops: formStops.map((stop) => ({
+      ...stop,
+      extra_delay_hours: Number(stop.extra_delay_hours) || 0,
+    })),
+    current_cycle_used_hours: Number(formValues.current_cycle_used_hours),
+    trip_start_time: formValues.trip_start_time || null,
+  })
+
   const handleSubmit = (event) => {
     event.preventDefault()
-    onSubmit({
-      ...values,
-      stops: stops.map((stop) => ({
-        ...stop,
-        extra_delay_hours: Number(stop.extra_delay_hours) || 0,
-      })),
-      current_cycle_used_hours: Number(values.current_cycle_used_hours),
-      trip_start_time: values.trip_start_time || null,
-    })
+    onSubmit(buildPayload(values, stops))
+  }
+
+  const handleTryExample = () => {
+    setValues(EXAMPLE_VALUES)
+    setStops(EXAMPLE_STOPS)
+    onSubmit(buildPayload(EXAMPLE_VALUES, EXAMPLE_STOPS))
   }
 
   return (
@@ -110,7 +129,8 @@ function TripForm({ onSubmit, isSubmitting, hasResult }) {
       </div>
 
       <label>
-        Current cycle used (hrs)
+        Current cycle used (hrs){' '}
+        <span className="label-hint">(hours on-duty in the last 8 days — check your ELD)</span>
         <input
           name="current_cycle_used_hours"
           type="number"
@@ -135,6 +155,16 @@ function TripForm({ onSubmit, isSubmitting, hasResult }) {
       <button type="submit" className="trip-form__submit" disabled={isSubmitting}>
         {isSubmitting ? 'Planning…' : hasResult ? 'Replan trip' : 'Plan trip'}
       </button>
+      {!hasResult && (
+        <button
+          type="button"
+          className="trip-form__try-example"
+          onClick={handleTryExample}
+          disabled={isSubmitting}
+        >
+          Try an example trip
+        </button>
+      )}
     </form>
   )
 }

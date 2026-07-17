@@ -2,7 +2,7 @@
 
 Run these yourself at **http://localhost:5173** with the backend running at
 **http://localhost:8000** (see [README.md](README.md) for setup). Automated
-tests (42, all passing — run `python manage.py test trips` in `backend/`)
+tests (44, all passing — run `python manage.py test trips` in `backend/`)
 already cover the HOS engine's logic in isolation with synthetic inputs —
 this plan is about verifying the **real, live, end-to-end** behavior: real
 geocoding, real routes, real rendering.
@@ -316,6 +316,73 @@ means a new mandatory rest was correctly triggered, not a bug.
 
 ---
 
+## Tier 8 — Shipping-readiness (rate limiting, disclaimers, onboarding)
+
+### TC-22: Form retains values through the *first* successful plan
+**Action:** load the app fresh (don't use "Try an example trip" for this
+one — fill fields by hand). Fill out a valid trip, click "Plan trip", wait
+for results.
+
+**Expected:** every field you typed is still showing its value once results
+appear — nothing resets to blank.
+
+**Why:** this exact bug shipped for a while — a React reconciliation issue
+where the "Trip details"/"Plan your trip" toggle unmounted and remounted the
+whole form the instant `hasPlannedOnce` flipped true, silently wiping every
+field right when results first appeared. It would have broken TC-21 (replan)
+for literally every real user on their very first plan, since replanning
+depends on the fields still being there. Fixed in `App.jsx`; see
+[ARCHITECTURE.md](ARCHITECTURE.md) for why the fix works. If this regresses,
+it'll be because someone reintroduced a ternary that swaps the form into a
+differently-shaped subtree instead of toggling content around a stable one.
+
+### TC-23: Rate limiting
+**Action:** open a terminal and fire the same request at
+`/api/trips/plan/` in a tight loop (21+ times within a minute) — e.g.:
+```bash
+for i in $(seq 1 21); do
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:8000/api/trips/plan/ \
+    -H "Content-Type: application/json" \
+    -d '{"current_location":"Denver, CO","stops":[{"location":"Colorado Springs, CO","type":"pickup"},{"location":"Albuquerque, NM","type":"dropoff"}],"current_cycle_used_hours":10}'
+done
+```
+
+**Expected:** the first 20 requests return `200` (or `400`/`502` if something
+else is wrong, but not blocked), and the 21st returns `429`. Same idea for
+`/api/locations/autocomplete/?q=Denver` at 61+ requests/minute.
+
+**Why:** every request here costs a real OpenRouteService API call in
+production — this caps worst-case cost from a bug, bot, or one heavy user.
+Automated coverage exists in `ThrottlingTests` (`backend/trips/tests/test_views.py`)
+using a lowered rate so it doesn't take 21 real requests to verify.
+
+### TC-24: Compliance disclaimer is visible, not buried
+**Action:** run any successful trip plan.
+
+**Expected:** a blue informational banner reading "This is a planning
+estimate, not an official duty record. Confirm actual hours with your
+certified ELD before driving." appears directly above the stat tiles —
+immediately visible without scrolling past the map or logs first.
+
+**Why:** the app touches DOT/FMCSA compliance; a driver could otherwise
+reasonably (and wrongly) assume the app itself is their duty record. This
+was previously only in small footer text.
+
+### TC-25: One-click example trip
+**Action:** on a fresh page load (before planning anything), click "Try an
+example trip" below the submit button.
+
+**Expected:** the form fields fill in with a real example (Denver, CO →
+Colorado Springs, CO (Pickup) → Albuquerque, NM (Dropoff), cycle used 10)
+and a full result — map, stat tiles, log sheet — appears without any further
+clicks. The button itself only appears before your first plan; once a
+result exists, it's gone (superseded by "Replan trip").
+
+**Why:** closes the evaluation-friction gap for a first-time/skeptical
+visitor who wants to see real output before typing a real trip.
+
+---
+
 ## Testing at the API level directly (optional, for backend-only checks)
 
 ```bash
@@ -352,10 +419,12 @@ Yes — mapping directly to the brief:
 | "We will test the hosted version for accuracy" | Tiers 2–4 are precisely an accuracy audit of the HOS rule engine against the real regulations |
 | "UI and UX must be good... can compensate for some inaccuracies" | Tier 5 — this is graded independently of correctness, so don't skip it even if Tiers 1–4 all pass |
 
-Tier 6 (print export, Google Maps link) and Tier 7 (start time, autocomplete,
-multi-stop, editable/recomputable plans) both go beyond the assignment's
-literal input/output spec — they came out of a product-roadmap discussion,
-not the brief itself. See [PRODUCT.md](PRODUCT.md) for that reasoning.
+Tier 6 (print export, Google Maps link), Tier 7 (start time, autocomplete,
+multi-stop, editable/recomputable plans), and Tier 8 (rate limiting,
+disclaimers, onboarding) all go beyond the assignment's literal input/output
+spec — they came out of a product-roadmap discussion and an honest
+shippability self-review, not the brief itself. See
+[PRODUCT.md](PRODUCT.md) for that reasoning.
 
 The one thing this plan **can't** validate for you: whether the *hosted*
 version (once deployed to Render/Vercel) behaves identically to localhost —

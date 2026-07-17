@@ -73,6 +73,32 @@ ELD replacement.
   instead of a frozen screen, and a subtle reveal animation when results
   land.
 
+## Shipping-readiness fixes (not features — risk/trust/onboarding gaps)
+
+Prompted by an honest "is this actually shippable?" self-review:
+
+- **Per-IP rate limiting** on both endpoints that cost a paid OpenRouteService
+  call. Before this, a bug, bot, or one heavy user had no ceiling — could run
+  up real API cost with nothing stopping it. This was the top blocker to
+  calling the app production-ready, not a nice-to-have.
+- **A visible compliance disclaimer** next to the results, not just buried in
+  the footer — "this is a planning estimate, not an official duty record."
+  Given this touches DOT/FMCSA compliance, the earlier footer-only version
+  risked a driver reasonably (and wrongly) assuming the app *is* their duty
+  record.
+- **Inline help for "Current cycle used (hrs)"** — the field previously
+  assumed the visitor already knew what a 70hr/8-day cycle is and where to
+  read it off their ELD. Fine for a trucking veteran, opaque for anyone
+  evaluating the product cold.
+- **"Try an example trip"** — a one-click path to real output (route, map,
+  logs) without typing a real trip first. Closes the evaluation-friction gap
+  for a skeptical first-time visitor.
+- Verifying the example-trip flow surfaced (and fixed) a real bug: the trip
+  form silently lost every typed value the instant the *first* plan
+  succeeded (a React reconciliation issue, not anything users did wrong) —
+  see [ARCHITECTURE.md](ARCHITECTURE.md). That would have broken the
+  "replan" flow's first use for every real user.
+
 ## Problems it could solve later (real roadmap, not done yet)
 
 - **Saved trip history / driver accounts** — currently fully stateless by

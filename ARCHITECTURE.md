@@ -90,6 +90,13 @@ sequenceDiagram
   `POST /api/trips/plan/` with adjusted inputs, and the whole schedule is
   simulated fresh. That's why a delay at one stop can correctly cascade into
   a new mandatory rest later in the trip instead of silently going stale.
+- **Per-IP rate limiting on both external-facing endpoints.** Every
+  `/api/trips/plan/` and `/api/locations/autocomplete/` request costs a paid
+  OpenRouteService call — DRF's `ScopedRateThrottle` caps worst-case cost
+  from a bug, bot, or single heavy user (defaults: 20/min, 60/min; see API
+  contract below). Uses Django's default local-memory cache, so counts reset
+  per-process and aren't shared across gunicorn workers if that changes —
+  fine for a single-process deployment, worth revisiting if that scales out.
 
 ## Low-Level Design
 
@@ -195,6 +202,10 @@ immediately; ORS failures soft-fail to `results: []` with a 200 rather than
 surfacing an error, since suggestions are a typing affordance, not the core
 planning flow.
 
+Both endpoints return `429 Too Many Requests` once their per-IP throttle
+rate is exceeded (`trip_plan`: 20/min, `location_autocomplete`: 60/min,
+overridable via `TRIP_PLAN_THROTTLE_RATE` / `AUTOCOMPLETE_THROTTLE_RATE`).
+
 ### Frontend modules (`frontend/src/`)
 
 | Module | Responsibility |
@@ -205,7 +216,7 @@ planning flow.
 | `components/AppHeader.jsx` | Logo, title/subtitle, and the theme-toggle button |
 | `components/HowItWorks.jsx` | 3-step "how it works" explainer shown before the driver's first plan |
 | `components/ResultsSkeleton.jsx` | Shimmering placeholder shown in place of results while a plan is in flight |
-| `components/TripForm.jsx` | The trip inputs (current location + a dynamic add/remove list of pickup/dropoff stops, each with an optional delay) + submit; label switches to "Replan trip" once a result exists |
+| `components/TripForm.jsx` | The trip inputs (current location + a dynamic add/remove list of pickup/dropoff stops, each with an optional delay) + submit; label switches to "Replan trip" once a result exists; "Try an example trip" fills known-good values and submits in one click |
 | `components/LocationAutocomplete.jsx` | Debounced place-suggestion dropdown, used by current location and every stop's location field |
 | `components/StatTiles.jsx` | Distance / driving time / total trip time / day-count summary tiles, each with an icon |
 | `components/MapView.jsx` | Leaflet map — polyline route + stop markers + "Open in Google Maps" link |
@@ -213,6 +224,13 @@ planning flow.
 | `components/LogSheetList.jsx` | Renders one `LogSheet` per day + the print-only trip-context line |
 | `utils/googleMapsLink.js` | Builds a Google Maps directions URL from the trip's real (non-interpolated) stops |
 | `App.jsx` | Empty state (how-it-works + form) → loading skeleton → results orchestration, print stylesheet triggers |
+
+`App.jsx`'s how-it-works/form toggle keeps `TripForm` at one stable
+tree position (only the *content around* it — `HowItWorks`, the card title —
+changes) rather than branching into two differently-shaped subtrees. An
+earlier ternary that swapped whole subtrees caused React to unmount and
+remount `TripForm` — silently wiping every field — the instant the first
+plan succeeded; keep this in mind before restructuring that toggle again.
 
 ## Deployment topology
 

@@ -205,7 +205,7 @@ rendered outside the 0–24 axis.
 
 ---
 
-## Tier 5 — UI/UX checks (the part the assignment explicitly grades)
+## Tier 5 — UI/UX checks (weighted as heavily as correctness)
 
 | Check | How to test | Expected |
 |---|---|---|
@@ -404,11 +404,11 @@ the serializer directly.
 
 ---
 
-## Does this match what the assignment asked for?
+## Core requirements coverage
 
-Yes — mapping directly to the brief:
+Mapping test coverage directly to the product's original core requirements:
 
-| Assignment requirement | Where it's covered |
+| Requirement | Where it's covered |
 |---|---|
 | Inputs: current, pickup, dropoff, current cycle used (hrs) | The original 4 fields — TC-1 through TC-15 all exercise these (now current + a stop list, see the field-name note above) |
 | Output: map with route + stops/rests, using a free map API | Leaflet + OpenStreetMap tiles (free) + OpenRouteService routing (free tier) — TC-1, TC-6 |
@@ -416,15 +416,14 @@ Yes — mapping directly to the brief:
 | Assumption: 70hr/8-day cycle, property-carrying driver | TC-4, TC-8, TC-9, TC-10 directly target this limit |
 | Assumption: fuel every 1,000 miles | TC-6 |
 | Assumption: 1 hr each for pickup/dropoff | Baked into every test case's on-duty blocks |
-| "We will test the hosted version for accuracy" | Tiers 2–4 are precisely an accuracy audit of the HOS rule engine against the real regulations |
-| "UI and UX must be good... can compensate for some inaccuracies" | Tier 5 — this is graded independently of correctness, so don't skip it even if Tiers 1–4 all pass |
+| Accuracy of the hosted deployment | Tiers 2–4 are precisely an accuracy audit of the HOS rule engine against the real regulations |
+| UI/UX quality, independent of correctness | Tier 5 — weighted as heavily as correctness, so don't skip it even if Tiers 1–4 all pass |
 
 Tier 6 (print export, Google Maps link), Tier 7 (start time, autocomplete,
 multi-stop, editable/recomputable plans), and Tier 8 (rate limiting,
-disclaimers, onboarding) all go beyond the assignment's literal input/output
-spec — they came out of a product-roadmap discussion and an honest
-shippability self-review, not the brief itself. See
-[PRODUCT.md](PRODUCT.md) for that reasoning.
+disclaimers, onboarding) all go beyond the original core input/output spec —
+they came out of a product-roadmap discussion and an honest shippability
+self-review. See [PRODUCT.md](PRODUCT.md) for that reasoning.
 
 The one thing this plan **can't** validate for you: whether the *hosted*
 version (once deployed to Render/Vercel) behaves identically to localhost —

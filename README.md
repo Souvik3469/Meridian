@@ -4,14 +4,13 @@ An ELD trip planner for truck drivers: enter a trip's current/pickup/dropoff
 locations and how many hours you've already worked this cycle, and get back
 a route map with rest/fuel stops plus auto-filled FMCSA daily log sheets.
 
-Built for a take-home full-stack assessment. See [ARCHITECTURE.md](ARCHITECTURE.md)
-for how it works, in plain English and in HLD/LLD technical detail,
-[PRODUCT.md](PRODUCT.md) for the product-owner read on who it's for and what
-it does (and doesn't) solve, and [TEST_PLAN.md](TEST_PLAN.md) for a manual
-test plan covering basic through edge-case scenarios.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how it works, in plain English and
+in HLD/LLD technical detail, [PRODUCT.md](PRODUCT.md) for the product-owner
+read on who it's for and what it does (and doesn't) solve, and
+[TEST_PLAN.md](TEST_PLAN.md) for a manual test plan covering basic through
+edge-case scenarios.
 
 - **Live app**: TBD
-- **Loom walkthrough**: TBD
 
 ## Tech stack
 
@@ -21,8 +20,6 @@ test plan covering basic through edge-case scenarios.
 - **Map rendering**: Leaflet
 
 ## Assumptions
-
-Per the assignment brief:
 
 - Property-carrying driver, 70-hour/8-day cycle, no adverse driving conditions
 - Fuel stop at least once every 1,000 miles

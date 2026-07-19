@@ -390,9 +390,9 @@ plan succeeded. If a future refactor reintroduces a ternary that swaps
   autocomplete, and routing, to keep API-key/quota management to one
   provider — at the cost of a single point of failure with no caching or
   fallback provider today.
-- **Domain assumptions** (from the assignment brief): property-carrying
-  driver, 70hrs/8-day cycle, no adverse driving conditions, fuel stop every
-  1,000 miles, 1 hour at each stop.
+- **Domain assumptions**: property-carrying driver, 70hrs/8-day cycle, no
+  adverse driving conditions, fuel stop every 1,000 miles, 1 hour at each
+  stop.
 - **Stops are a generic ordered list**, not a hardcoded pickup + dropoff pair.
   The engine treats every stop identically (drive the leg, then on-duty time);
   only the `type` tag (`pickup`/`dropoff`) differs, and it's used purely for

@@ -5,9 +5,9 @@ driver's cycle hours already used, and produces a time-ordered list of duty
 status entries. Kept dependency-free so it can be unit-tested with synthetic
 distances instead of a real routing API.
 
-Assumptions (per the assignment brief): property-carrying driver, 70hr/8-day
-cycle, no adverse driving conditions, a fuel stop every 1,000 miles, and 1
-hour each for pickup and dropoff.
+Assumptions: property-carrying driver, 70hr/8-day cycle, no adverse driving
+conditions, a fuel stop every 1,000 miles, and 1 hour each for pickup and
+dropoff.
 """
 
 from dataclasses import dataclass
@@ -22,7 +22,7 @@ DAILY_RESET_HOURS = 10.0
 MAX_CYCLE_HOURS = 70.0
 RESTART_DURATION_HOURS = 34.0
 
-# Assignment-specific assumptions (not federal law, but given in the brief).
+# Product-specific assumptions (not federal law, but part of the domain scope).
 FUEL_INTERVAL_MILES = 1000.0
 FUEL_STOP_HOURS = 0.5
 PICKUP_DROPOFF_HOURS = 1.0
@@ -100,7 +100,7 @@ class HOSEngine:
             if chunk <= _EPSILON:
                 # Priority: mandatory break, then daily reset, then cycle
                 # restart, then fuel — regulatory rests take precedence over
-                # the assignment's operational fuel-stop assumption.
+                # the product's operational fuel-stop assumption.
                 if break_left <= _EPSILON:
                     self._take_break()
                 elif window_left <= _EPSILON or driving_left <= _EPSILON:

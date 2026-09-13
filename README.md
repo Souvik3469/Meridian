@@ -18,10 +18,10 @@ Meridian started as a take-home assessment. The brief was the ELD trip planner: 
 driver's used cycle hours, produce a compliant route and filled log sheets.
 
 I kept building after the assessment closed, because the interesting part — the Hours-of-Service
-rule engine — was more of a constraint-scheduling problem than the brief needed it to be. What came
-after the original scope: the engine rewritten as a pure, dependency-free simulator with its own
-unit tests; multi-stop trips; trip replanning; location autocomplete; the log-sheet export; request
-throttling; and the documentation set in this repository.
+rule engine — was more of a constraint-scheduling problem than the brief needed it to be. Work that
+came after the original scope is tracked in `TEST_PLAN.md` under Tier 7: configurable trip start
+time, location autocomplete, multi-stop trips, and replanning — plus the documentation set in this
+repository.
 
 The simplifications that remain against the real federal rules — no sleeper-berth split provision,
 no adverse-driving exception, a relative rather than calendar-anchored clock — are listed as

@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meridian — Architecture Deep Dive</title>
+<style>
+  :root {
+    --bg:#0f1117; --bg-alt:#161925; --panel:#1a1e2b; --border:#2a2f40;
+    --text:#dbe1ee; --text-dim:#8b93a7; --accent:#7aa2ff; --accent2:#c792ea;
+    --good:#4fd1a5; --warn:#f0b74e; --bad:#ff7a85; --code-bg:#10131c;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6}
+  body{display:flex;min-height:100vh}
+  nav.toc{position:sticky;top:0;align-self:flex-start;width:290px;min-width:290px;height:100vh;
+    overflow-y:auto;background:var(--bg-alt);border-right:1px solid var(--border);padding:20px 16px 60px}
+  nav.toc .brand{font-weight:700;font-size:1.1rem;color:var(--accent);margin-bottom:4px}
+  nav.toc .brand-sub{font-size:.78rem;color:var(--text-dim);margin-bottom:18px}
+  nav.toc a{display:block;color:var(--text-dim);text-decoration:none;font-size:.84rem;padding:3px 0 3px 10px;border-left:2px solid transparent}
+  nav.toc a:hover{color:var(--accent);border-left-color:var(--accent)}
+  nav.toc .lvl1{font-weight:700;color:var(--text);margin-top:14px;font-size:.88rem;padding-left:0;border-left:none}
+  nav.toc .lvl1:first-child{margin-top:0}
+  nav.toc .lvl2{padding-left:20px;font-size:.78rem;opacity:.9}
+  main{flex:1;min-width:0;padding:40px clamp(20px,5vw,70px) 120px}
+  .wrap{max-width:var(--maxw);margin:0 auto}
+  h1{font-size:2rem;color:#fff;margin-bottom:.4em}
+  h2{font-size:1.45rem;color:#fff;border-bottom:1px solid var(--border);padding-bottom:10px;margin-top:2.8em;scroll-margin-top:20px}
+  h3{font-size:1.12rem;color:var(--accent);margin-top:2em;scroll-margin-top:20px}
+  h4{font-size:1rem;color:var(--accent2);margin-top:1.6em;margin-bottom:.4em}
+  a{color:var(--accent)}
+  code{font-family:var(--mono);background:var(--code-bg);padding:.1em .4em;border-radius:4px;font-size:.88em;color:#ffd479;border:1px solid var(--border)}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:.84rem}
+  pre code{border:none;background:none;padding:0;color:#cdd6e4}
+  ul,ol{padding-left:1.4em}
+  li{margin-bottom:.35em}
+  table{width:100%;border-collapse:collapse;margin:1em 0 1.6em;font-size:.9rem}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel);color:#fff}
+  blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:1.3em 0;padding:12px 18px;border-radius:0 6px 6px 0;color:var(--text)}
+  blockquote p{margin:.4em 0}
+  hr{border:none;border-top:1px solid var(--border);margin:2.4em 0}
+  strong{color:#fff}
+  @media(max-width:900px){body{display:block}nav.toc{position:static;width:auto;min-width:0;height:auto;border-right:none;border-bottom:1px solid var(--border)}}
+</style></head><body>
+<nav class="toc"><div class="brand">Meridian</div><div class="brand-sub">Deep Dive</div>
+<a class="lvl1" href="#1-overview">1. Overview</a>
+<a class="lvl1" href="#2-hld">2. HLD</a>
+<a class="lvl2" href="#21-components">2.1 Components</a>
+<a class="lvl2" href="#22-communication">2.2 Communication</a>
+<a class="lvl2" href="#23-diagram">2.3 Diagram</a>
+<a class="lvl2" href="#24-deployment-topology">2.4 Deployment topology</a>
+<a class="lvl1" href="#3-hld-file-wise-flow">3. HLD — File-wise Flow</a>
+<a class="lvl2" href="#31-file-map">3.1 File map</a>
+<a class="lvl2" href="#32-flow-a-plan-a-trip">3.2 Flow A — Plan a trip</a>
+<a class="lvl2" href="#33-flow-b-location-autocomplete">3.3 Flow B — Location autocomplete</a>
+<a class="lvl2" href="#34-flow-c-replan-with-a-stop-delay">3.4 Flow C — Replan with a stop delay</a>
+<a class="lvl2" href="#35-flow-d-print-export">3.5 Flow D — Print / export</a>
+<a class="lvl1" href="#4-lld">4. LLD</a>
+<a class="lvl2" href="#41-data-model">4.1 Data model</a>
+<a class="lvl2" href="#42-constants-hosenginepy">4.2 Constants (<code>hos/engine.py</code>)</a>
+<a class="lvl2" href="#43-hosengine-state">4.3 HOSEngine state</a>
+<a class="lvl2" href="#44-state-machine-what-drive-does-each-loop-iteration">4.4 State machine — what <code>drive()</code> does each loop iteration</a>
+<a class="lvl2" href="#45-module-interfaces">4.5 Module interfaces</a>
+<a class="lvl2" href="#46-validation-rules-serializerspy">4.6 Validation rules (<code>serializers.py</code>)</a>
+<a class="lvl2" href="#47-api-contract">4.7 API contract</a>
+<a class="lvl2" href="#48-frontend-state">4.8 Frontend state</a>
+<a class="lvl1" href="#5-lld-function-wise-flow">5. LLD — Function-wise Flow</a>
+<a class="lvl2" href="#51-plan-a-trip">5.1 Plan a trip</a>
+<a class="lvl2" href="#52-autocomplete">5.2 Autocomplete</a>
+<a class="lvl2" href="#53-render-results">5.3 Render results</a>
+<a class="lvl1" href="#6-dry-runs">6. Dry Runs</a>
+<a class="lvl2" href="#61-happy-path-with-start-time-and-a-pickup-delay">6.1 Happy path with start time and a pickup delay</a>
+<a class="lvl2" href="#62-long-day-30-minute-break-and-10-hour-reset">6.2 Long day: 30-minute break and 10-hour reset</a>
+<a class="lvl2" href="#63-cycle-exhaustion-34-hour-restart">6.3 Cycle exhaustion: 34-hour restart</a>
+<a class="lvl2" href="#64-fuel-stop-at-mile-1000">6.4 Fuel stop at mile 1,000</a>
+<a class="lvl2" href="#65-error-path-invalid-request">6.5 Error path: invalid request</a>
+<a class="lvl2" href="#66-error-path-unresolvable-location">6.6 Error path: unresolvable location</a>
+<a class="lvl1" href="#7-issues">7. Issues</a>
+<a class="lvl2" href="#7a-fixed">7a. Fixed</a>
+<a class="lvl1" href="#8-testing">8. Testing</a>
+<a class="lvl1" href="#9-design-decisions-and-tradeoffs">9. Design Decisions and Tradeoffs</a>
+</nav><main><div class="wrap">
+<h1>Meridian — Architecture Deep Dive</h1>
+<hr>
+<h2 id="1-overview">1. Overview</h2>
+<p>Meridian is a pre-trip planner for US property-carrying truck drivers. The driver enters a current location, an ordered list of stops (pickup or dropoff), and the on-duty hours already used in the current 70-hour/8-day cycle. The system returns a truck route on a map, the rest and fuel stops the law or the product requires, and one filled FMCSA daily log sheet per day.</p>
+<p><strong>HOS</strong> (Hours of Service) is the set of FMCSA (Federal Motor Carrier Safety Administration) rules that cap how long a commercial driver may drive and stay on duty.</p>
+<table><tr><th>Aspect</th><th>Value</th></tr>
+<tr><td>Backend</td><td>Django 6.0.6 + Django REST Framework 3.17.1, one app: <code>trips</code></td></tr>
+<tr><td>HOS rules</td><td><code>backend/trips/hos/engine.py</code> — pure Python, no I/O, no Django imports</td></tr>
+<tr><td>External API</td><td>OpenRouteService (ORS): geocoding, autocomplete, truck (HGV) routing</td></tr>
+<tr><td>Frontend</td><td>React 19 + Vite 8, Leaflet via react-leaflet 5, SVG log sheets</td></tr>
+<tr><td>Persistence</td><td>None for product data. SQLite exists only for Django's built-in apps</td></tr>
+<tr><td>Hosting</td><td>Backend on Render (<code>render.yaml</code>, Gunicorn). Frontend on Vercel (static build)</td></tr>
+<tr><td>Tests</td><td>44 backend tests in 5 modules under <code>backend/trips/tests/</code>, all passing</td></tr>
+</table>
+<p><strong>Scope.</strong> Property-carrying driver. 70-hour/8-day cycle. 11-hour driving limit, 14-hour duty window, 30-minute break after 8 hours of driving, 10-hour daily reset, 34-hour cycle restart. Product assumptions: fuel every 1,000 miles (30 min), 1 hour on duty at each stop plus any user-entered delay.</p>
+<p><strong>Out of scope (documented in the engine docstring and README).</strong> Sleeper-berth split, adverse-driving exception, short-haul exception, calendar-anchored dates.</p>
+<hr>
+<h2 id="2-hld">2. HLD</h2>
+<h3 id="21-components">2.1 Components</h3>
+<table><tr><th>Component</th><th>Tech</th><th>Responsibility</th></tr>
+<tr><td>React SPA</td><td>React 19, Vite</td><td>Trip form, autocomplete, map, log-sheet rendering, print. No HOS logic</td></tr>
+<tr><td>Django API</td><td>Django + DRF</td><td>Validate input, orchestrate geocode → route → HOS engine, shape JSON</td></tr>
+<tr><td>HOS engine</td><td>Pure Python module</td><td>Simulate the duty timeline; insert breaks, resets, restarts, fuel stops</td></tr>
+<tr><td>ORS</td><td>Third-party HTTPS API</td><td>Text → coordinates; partial text → suggestions; waypoints → route</td></tr>
+<tr><td>OSM tiles</td><td>tile.openstreetmap.org</td><td>Map background tiles, fetched directly by the browser</td></tr>
+<tr><td>Google Maps link</td><td>URL only</td><td>"Open in Google Maps" deep link; no API key, no server call</td></tr>
+<tr><td>SQLite</td><td><code>backend/db.sqlite3</code></td><td>Created by <code>migrate</code>. Holds Django admin/auth/session tables only</td></tr>
+</table>
+<h3 id="22-communication">2.2 Communication</h3>
+<table><tr><th>From → To</th><th>Protocol</th><th>Payload</th></tr>
+<tr><td>Browser → Django</td><td>HTTPS REST, JSON. CORS-restricted by <code>CORS_ALLOWED_ORIGINS</code></td><td><code>POST /api/trips/plan/</code>, <code>GET /api/locations/autocomplete/?q=</code></td></tr>
+<tr><td>Django → ORS geocode</td><td>HTTPS GET, API key as <code>api_key</code> query param, 10 s timeout</td><td><code>text</code>, <code>size</code></td></tr>
+<tr><td>Django → ORS directions</td><td>HTTPS POST, API key in <code>Authorization</code> header, 15 s timeout</td><td><code>{"coordinates": [[lng, lat], ...]}</code></td></tr>
+<tr><td>Browser → OSM</td><td>HTTPS GET image tiles</td><td><code>{z}/{x}/{y}.png</code></td></tr>
+</table>
+<p>All calls are synchronous request/response. There is no WebSocket, queue, background worker, or cache layer.</p>
+<h3 id="23-diagram">2.3 Diagram</h3>
+<pre><code>                     Vercel (static)                          Render (free web service)
+             +------------------------------+          +-------------------------------------+
+  Browser --&gt;|  React SPA (Vite build)      |          |  Gunicorn -&gt; config.wsgi            |
+             |  App.jsx                     |  HTTPS   |   WhiteNoise, CORS middleware        |
+             |   TripForm / Autocomplete  --+--JSON---&gt;|   /api/ -&gt; trips/urls.py             |
+             |   MapView (Leaflet)          |          |     PlanTripView                    |
+             |   LogSheetList / LogSheet    |&lt;---------+     LocationAutocompleteView        |
+             +---------------+--------------+          |     health_check                    |
+                             |                         |           |                         |
+                             | tiles                   |   planner.plan_trip()               |
+                             v                         |     |           |            |      |
+                   tile.openstreetmap.org              |  services/   services/   hos/engine |
+                                                       |  geocoding   routing     (pure)     |
+                                                       |     |           |                   |
+                                                       +-----+-----------+-------------------+
+                                                             | HTTPS     | HTTPS
+                                                             v           v
+                                                   OpenRouteService  /geocode/*  /v2/directions/driving-hgv</code></pre>
+<h3 id="24-deployment-topology">2.4 Deployment topology</h3>
+<table><tr><th>Piece</th><th>Where</th><th>Config</th></tr>
+<tr><td>Backend</td><td>Render web service <code>meridian-backend</code>, <code>plan: free</code>, <code>rootDir: backend</code></td><td>Build: <code>pip install</code>, <code>collectstatic</code>, <code>migrate</code>. Start: <code>gunicorn config.wsgi:application</code> (Gunicorn defaults: 1 sync worker, 30 s timeout)</td></tr>
+<tr><td>Backend env</td><td><code>render.yaml</code></td><td><code>DJANGO_SECRET_KEY</code> generated, <code>DJANGO_DEBUG=False</code>, <code>DJANGO_ALLOWED_HOSTS=.onrender.com</code>, <code>CORS_ALLOWED_ORIGINS</code> and <code>OPENROUTESERVICE_API_KEY</code> set in the dashboard</td></tr>
+<tr><td>Static files</td><td>WhiteNoise, <code>CompressedManifestStaticFilesStorage</code></td><td>Serves Django admin assets</td></tr>
+<tr><td>Frontend</td><td>Vercel static build</td><td><code>VITE_API_BASE_URL</code> points at the Render URL (fallback <code>http://127.0.0.1:8000</code>)</td></tr>
+<tr><td>Rate limiting</td><td>DRF <code>ScopedRateThrottle</code></td><td><code>trip_plan</code> 20/min, <code>location_autocomplete</code> 60/min per client IP; overridable by <code>TRIP_PLAN_THROTTLE_RATE</code>, <code>AUTOCOMPLETE_THROTTLE_RATE</code></td></tr>
+</table>
+<hr>
+<h2 id="3-hld-file-wise-flow">3. HLD — File-wise Flow</h2>
+<h3 id="31-file-map">3.1 File map</h3>
+<table><tr><th>File / folder</th><th>What it does</th></tr>
+<tr><td><code>render.yaml</code></td><td>Render blueprint: build/start commands and env vars</td></tr>
+<tr><td><code>backend/config/settings.py</code></td><td>Env-driven settings: <code>SECRET_KEY</code>, <code>DEBUG</code>, <code>ALLOWED_HOSTS</code>, CORS, WhiteNoise, <code>OPENROUTESERVICE_API_KEY</code>, <code>REST_FRAMEWORK</code> throttles</td></tr>
+<tr><td><code>backend/config/urls.py</code></td><td>Mounts <code>admin/</code> and <code>api/</code> → <code>trips.urls</code></td></tr>
+<tr><td><code>backend/trips/urls.py</code></td><td><code>health/</code>, <code>trips/plan/</code>, <code>locations/autocomplete/</code></td></tr>
+<tr><td><code>backend/trips/views.py</code></td><td><code>health_check</code>, <code>LocationAutocompleteView</code>, <code>PlanTripView</code>; maps domain errors to HTTP codes</td></tr>
+<tr><td><code>backend/trips/serializers.py</code></td><td><code>TripRequestSerializer</code>, <code>TripStopSerializer</code>: input validation</td></tr>
+<tr><td><code>backend/trips/planner.py</code></td><td><code>plan_trip()</code>: orchestration and response shaping; <code>STOP_TYPES_BY_LABEL</code></td></tr>
+<tr><td><code>backend/trips/hos/engine.py</code></td><td><code>HOSEngine</code>, <code>build_duty_schedule()</code>, <code>split_into_days()</code>, dataclasses, HOS constants</td></tr>
+<tr><td><code>backend/trips/services/geocoding.py</code></td><td><code>geocode()</code>, <code>autocomplete()</code> → ORS geocode endpoints</td></tr>
+<tr><td><code>backend/trips/services/routing.py</code></td><td><code>get_route()</code> → ORS directions; <code>RouteResult</code>, <code>RouteLegResult</code></td></tr>
+<tr><td><code>backend/trips/services/geometry.py</code></td><td><code>haversine_miles()</code>, <code>point_at_distance()</code> for placing rest/fuel pins on the polyline</td></tr>
+<tr><td><code>backend/trips/services/exceptions.py</code></td><td><code>GeocodingError</code>, <code>RoutingError</code></td></tr>
+<tr><td><code>backend/trips/models.py</code></td><td>Empty Django stub; no models</td></tr>
+<tr><td><code>backend/trips/tests/</code></td><td><code>test_hos_engine.py</code>, <code>test_geocoding.py</code>, <code>test_routing.py</code>, <code>test_geometry.py</code>, <code>test_views.py</code></td></tr>
+<tr><td><code>frontend/src/main.jsx</code></td><td>Mounts <code>&lt;App/&gt;</code> in <code>&lt;StrictMode&gt;</code></td></tr>
+<tr><td><code>frontend/src/App.jsx</code></td><td>Top-level state (<code>result</code>, <code>tripInputs</code>, <code>error</code>, <code>isSubmitting</code>, <code>hasPlannedOnce</code>) and layout</td></tr>
+<tr><td><code>frontend/src/api/tripService.js</code></td><td><code>planTrip(payload)</code>: POST wrapper, error message flattening</td></tr>
+<tr><td><code>frontend/src/api/locationService.js</code></td><td><code>getLocationSuggestions(query, signal)</code>: GET wrapper, soft-fails to <code>[]</code></td></tr>
+<tr><td><code>frontend/src/components/TripForm.jsx</code></td><td>Form state (<code>values</code>, <code>stops</code>), <code>buildPayload</code>, add/remove stop, example trip</td></tr>
+<tr><td><code>frontend/src/components/LocationAutocomplete.jsx</code></td><td>Debounced (300 ms) combobox with abort + request-id guard</td></tr>
+<tr><td><code>frontend/src/components/MapView.jsx</code></td><td>Leaflet map: polyline, typed stop markers, legend, Google Maps link</td></tr>
+<tr><td><code>frontend/src/components/LogSheetList.jsx</code>, <code>LogSheet.jsx</code></td><td>One SVG 24-hour grid per day; step line per duty status</td></tr>
+<tr><td><code>frontend/src/components/StatTiles.jsx</code></td><td>Distance, driving time, total trip time, day count</td></tr>
+<tr><td><code>frontend/src/components/AppHeader.jsx</code>, <code>HowItWorks.jsx</code>, <code>ResultsSkeleton.jsx</code></td><td>Header + theme toggle, intro explainer, loading placeholder</td></tr>
+<tr><td><code>frontend/src/hooks/useTheme.js</code></td><td>Light/dark theme persisted in <code>localStorage['meridian-theme']</code></td></tr>
+<tr><td><code>frontend/src/utils/googleMapsLink.js</code></td><td><code>buildGoogleMapsDirectionsUrl(stops)</code> from real stops only</td></tr>
+</table>
+<h3 id="32-flow-a-plan-a-trip">3.2 Flow A — Plan a trip</h3>
+<ol><li><code>TripForm.jsx</code> → <code>handleSubmit</code> builds the payload with <code>buildPayload</code> and calls the <code>onSubmit</code> prop.</li><li><code>App.jsx</code> → <code>handleSubmit</code> sets loading state, clears old result, calls <code>planTrip</code>.</li><li><code>api/tripService.js</code> → <code>POST {API_BASE_URL}/api/trips/plan/</code> with JSON body.</li><li><code>config/urls.py</code> → routes <code>api/</code> to <code>trips/urls.py</code>.</li><li><code>trips/urls.py</code> → <code>trips/plan/</code> resolves to <code>PlanTripView</code>.</li><li>DRF throttle (<code>settings.py</code> <code>REST_FRAMEWORK</code>) → <code>ScopedRateThrottle</code> checks scope <code>trip_plan</code>; 429 if exceeded.</li><li><code>views.py</code> <code>PlanTripView.post</code> → validates with <code>serializers.py</code>, calls <code>plan_trip</code>.</li><li><code>planner.py</code> → geocodes every location via <code>services/geocoding.py</code>.</li><li><code>services/routing.py</code> → one ORS directions call for all waypoints; returns legs + geometry.</li><li><code>hos/engine.py</code> → <code>build_duty_schedule</code> produces the flat timeline; <code>split_into_days</code> slices it per 24 h.</li><li><code>services/geometry.py</code> → <code>point_at_distance</code> places rest/fuel pins on the route polyline.</li><li><code>planner.py</code> → returns <code>{route, days, summary}</code>; <code>views.py</code> wraps it in <code>Response</code> (200).</li><li><code>App.jsx</code> → stores <code>result</code>, <code>tripInputs</code>, sets <code>hasPlannedOnce</code>; renders <code>StatTiles</code>, <code>MapView</code>, <code>LogSheetList</code>.</li></ol>
+<h3 id="33-flow-b-location-autocomplete">3.3 Flow B — Location autocomplete</h3>
+<ol><li><code>LocationAutocomplete.jsx</code> → <code>useEffect</code> on <code>value</code>; skips if under 3 chars; debounces 300 ms.</li><li><code>api/locationService.js</code> → <code>GET /api/locations/autocomplete/?q=...</code> with an <code>AbortController</code> signal.</li><li><code>trips/urls.py</code> → <code>LocationAutocompleteView</code> (throttle scope <code>location_autocomplete</code>).</li><li><code>views.py</code> <code>LocationAutocompleteView.get</code> → strips <code>q</code>; returns <code>{results: []}</code> if under 3 chars.</li><li><code>services/geocoding.py</code> <code>autocomplete</code> → ORS <code>/geocode/autocomplete</code>, maps features to <code>{label, lat, lng}</code>.</li><li><code>views.py</code> → on <code>GeocodingError</code> returns <code>{results: []}</code> with 200 (soft fail).</li><li><code>LocationAutocomplete.jsx</code> → drops the response if <code>requestIdRef</code> moved on; opens the list only if the field is still focused.</li></ol>
+<h3 id="34-flow-c-replan-with-a-stop-delay">3.4 Flow C — Replan with a stop delay</h3>
+<ol><li><code>TripForm.jsx</code> → user edits the <code>Delay (hrs)</code> field of a stop; <code>setStopField</code> updates <code>stops</code>.</li><li><code>TripForm.jsx</code> → submit button reads "Replan trip" (<code>hasResult</code> prop); <code>buildPayload</code> sends <code>extra_delay_hours</code> as a number.</li><li>Same path as Flow A from step 2. There is no partial-update endpoint.</li><li><code>planner.py</code> → converts each stop to on-duty hours <code>PICKUP_DROPOFF_HOURS + extra_delay_hours</code>.</li><li><code>hos/engine.py</code> → full re-simulation; a longer stop can push a later drive past a limit and add a new rest.</li></ol>
+<h3 id="35-flow-d-print-export">3.5 Flow D — Print / export</h3>
+<ol><li><code>App.jsx</code> → "Print / Save as PDF" button calls <code>window.print()</code>.</li><li><code>App.css</code> <code>@media print</code> → hides <code>.no-print</code>, shows <code>.print-only</code>.</li><li><code>LogSheetList.jsx</code> → print-only trip line (<code>current → stop1 → stop2</code>) plus one <code>LogSheet</code> per page.</li></ol>
+<hr>
+<h2 id="4-lld">4. LLD</h2>
+<h3 id="41-data-model">4.1 Data model</h3>
+<p>There are no database models. <code>trips/models.py</code> is the empty stub. All domain data is in-memory dataclasses, built per request and discarded.</p>
+<table><tr><th>Type</th><th>File</th><th>Fields</th><th>Notes</th></tr>
+<tr><td><code>DutyStatus</code></td><td><code>hos/engine.py</code></td><td><code>OFF_DUTY="off_duty"</code>, <code>SLEEPER_BERTH="sleeper_berth"</code>, <code>DRIVING="driving"</code>, <code>ON_DUTY_NOT_DRIVING="on_duty_not_driving"</code></td><td><code>str, Enum</code>; value is the JSON string</td></tr>
+<tr><td><code>LogEntry</code></td><td><code>hos/engine.py</code></td><td><code>status</code>, <code>start_hour</code>, <code>end_hour</code>, <code>label</code>, <code>distance_marker_miles=0.0</code>; property <code>duration</code></td><td>Absolute hours from trip-day midnight</td></tr>
+<tr><td><code>RouteLeg</code></td><td><code>hos/engine.py</code></td><td><code>distance_miles</code>, <code>duration_hours</code>, <code>label</code></td><td>Engine input, one per stop</td></tr>
+<tr><td><code>DayEntry</code></td><td><code>hos/engine.py</code></td><td><code>status</code>, <code>start_hour</code>, <code>end_hour</code>, <code>label</code>; property <code>duration</code></td><td>Hours 0–24 within one day</td></tr>
+<tr><td><code>DaySchedule</code></td><td><code>hos/engine.py</code></td><td><code>day_number</code>, <code>entries: list[DayEntry]</code>, <code>totals: dict[str, float]</code></td><td><code>totals</code> has a key for every <code>DutyStatus</code> value</td></tr>
+<tr><td><code>RouteLegResult</code></td><td><code>services/routing.py</code></td><td><code>distance_miles</code>, <code>duration_hours</code></td><td>One per ORS segment</td></tr>
+<tr><td><code>RouteResult</code></td><td><code>services/routing.py</code></td><td><code>distance_miles</code>, <code>duration_hours</code>, <code>geometry: list[(lat, lng)]</code>, <code>legs</code></td><td>ORS coords are <code>[lng, lat]</code>; flipped here</td></tr>
+</table>
+<h3 id="42-constants-hosenginepy">4.2 Constants (<code>hos/engine.py</code>)</h3>
+<table><tr><th>Constant</th><th>Value</th><th>Source</th></tr>
+<tr><td><code>MAX_DRIVING_HOURS</code></td><td>11.0</td><td>Federal</td></tr>
+<tr><td><code>MAX_DUTY_WINDOW_HOURS</code></td><td>14.0</td><td>Federal</td></tr>
+<tr><td><code>BREAK_REQUIRED_AFTER_HOURS</code></td><td>8.0</td><td>Federal</td></tr>
+<tr><td><code>BREAK_DURATION_HOURS</code></td><td>0.5</td><td>Federal</td></tr>
+<tr><td><code>DAILY_RESET_HOURS</code></td><td>10.0</td><td>Federal</td></tr>
+<tr><td><code>MAX_CYCLE_HOURS</code></td><td>70.0</td><td>Federal (70/8)</td></tr>
+<tr><td><code>RESTART_DURATION_HOURS</code></td><td>34.0</td><td>Federal</td></tr>
+<tr><td><code>FUEL_INTERVAL_MILES</code></td><td>1000.0</td><td>Product</td></tr>
+<tr><td><code>FUEL_STOP_HOURS</code></td><td>0.5</td><td>Product</td></tr>
+<tr><td><code>PICKUP_DROPOFF_HOURS</code></td><td>1.0</td><td>Product</td></tr>
+<tr><td><code>_EPSILON</code></td><td>1e-6</td><td>Float tolerance; prevents zero-length chunks and infinite loops</td></tr>
+</table>
+<h3 id="43-hosengine-state">4.3 HOSEngine state</h3>
+<table><tr><th>Field</th><th>Initial</th><th>Meaning</th><th>Reset by</th></tr>
+<tr><td><code>clock</code></td><td>0.0</td><td>Hours since midnight of day 1</td><td>Never</td></tr>
+<tr><td><code>duty_window_start</code></td><td><code>None</code></td><td>Clock value when the 14-hour window opened</td><td>Off-duty block ≥ 10 h (sets <code>None</code>)</td></tr>
+<tr><td><code>driving_hours_today</code></td><td>0.0</td><td>Driving in current window</td><td>Off-duty block ≥ 10 h</td></tr>
+<tr><td><code>hours_since_break</code></td><td>0.0</td><td>Driving since last ≥ 30 min non-driving block</td><td>Any non-driving block ≥ 0.5 h</td></tr>
+<tr><td><code>cycle_hours_used</code></td><td>input</td><td>On-duty + driving in the cycle</td><td>Off-duty block ≥ 34 h</td></tr>
+<tr><td><code>miles_since_fuel</code></td><td>0.0</td><td>Miles since last fuel stop</td><td><code>_take_fuel_stop</code></td></tr>
+<tr><td><code>distance_traveled_miles</code></td><td>0.0</td><td>Odometer, stamped on every entry</td><td>Never</td></tr>
+<tr><td><code>entries</code></td><td><code>[]</code></td><td>Output timeline</td><td>Never</td></tr>
+</table>
+<p>All counter updates happen in one place: <code>_append()</code>. The rest-insertion helpers only choose a status and duration.</p>
+<h3 id="44-state-machine-what-drive-does-each-loop-iteration">4.4 State machine — what <code>drive()</code> does each loop iteration</h3>
+<pre><code>                 +---------------------------------------------+
+                 | compute headroom:                           |
+                 |  window_left, driving_left, break_left,     |
+                 |  cycle_left, fuel_left (hours at leg speed) |
+                 +----------------------+----------------------+
+                                        |
+                  chunk = min(remaining, all headrooms)
+                                        |
+                 +----------------------+----------------------+
+                 | chunk &gt; EPS                                 | chunk &lt;= EPS
+                 v                                             v
+        append DRIVING(chunk)                 first binding limit, in priority order:
+        remaining -= chunk                      break_left&lt;=EPS      -&gt; _take_break()        (0.5h ON_DUTY)
+        miles += chunk*speed                    window/driving&lt;=EPS  -&gt; _take_daily_reset()  (10h OFF)
+                 |                              cycle_left&lt;=EPS      -&gt; _take_restart()      (34h OFF)
+                 |                              else (fuel)          -&gt; _take_fuel_stop()    (0.5h ON_DUTY)
+                 |                                             |
+                 +-------------------&gt; loop while remaining &gt; EPS &lt;---+</code></pre>
+<p><code>on_duty()</code> uses the same pattern with only two limits: <code>window_left</code> → <code>_take_daily_reset()</code>, <code>cycle_left</code> → <code>_take_restart()</code>.</p>
+<p>Duty-status transitions that can appear in output:</p>
+<pre><code>  OFF_DUTY ("Before trip start")  --&gt; DRIVING
+  DRIVING --&gt; ON_DUTY_NOT_DRIVING  (30-minute break / Fuel stop / Pickup at X / Dropoff at X)
+  DRIVING --&gt; OFF_DUTY             (10-hour rest period / 34-hour restart)
+  ON_DUTY_NOT_DRIVING --&gt; DRIVING
+  ON_DUTY_NOT_DRIVING --&gt; OFF_DUTY (window or cycle exhausted during a stop)
+  OFF_DUTY --&gt; DRIVING or ON_DUTY_NOT_DRIVING
+  SLEEPER_BERTH: declared, never emitted</code></pre>
+<h3 id="45-module-interfaces">4.5 Module interfaces</h3>
+<table><tr><th>Function / class</th><th>File</th><th>Signature</th><th>Returns / raises</th></tr>
+<tr><td><code>health_check</code></td><td><code>views.py</code></td><td><code>GET</code></td><td><code>{"status": "ok"}</code></td></tr>
+<tr><td><code>LocationAutocompleteView.get</code></td><td><code>views.py</code></td><td><code>(request)</code></td><td><code>{"results": [...]}</code>, always 200 unless throttled</td></tr>
+<tr><td><code>PlanTripView.post</code></td><td><code>views.py</code></td><td><code>(request)</code></td><td>200 plan / 400 validation or geocode / 502 routing / 429</td></tr>
+<tr><td><code>plan_trip</code></td><td><code>planner.py</code></td><td><code>(current_location, stops, current_cycle_used_hours, trip_start_time=None)</code></td><td><code>dict</code>; propagates <code>GeocodingError</code>, <code>RoutingError</code></td></tr>
+<tr><td><code>geocode</code></td><td><code>services/geocoding.py</code></td><td><code>(location_text) -&gt; (lat, lng)</code></td><td><code>GeocodingError</code> on HTTP error or zero features</td></tr>
+<tr><td><code>autocomplete</code></td><td><code>services/geocoding.py</code></td><td><code>(query_text, limit=5) -&gt; list[dict]</code></td><td><code>GeocodingError</code> on HTTP error</td></tr>
+<tr><td><code>get_route</code></td><td><code>services/routing.py</code></td><td><code>(waypoints) -&gt; RouteResult</code></td><td><code>RoutingError</code> on network error, non-200, or missing keys</td></tr>
+<tr><td><code>haversine_miles</code></td><td><code>services/geometry.py</code></td><td><code>(p1, p2) -&gt; float</code></td><td>Great-circle miles, radius 3958.8</td></tr>
+<tr><td><code>point_at_distance</code></td><td><code>services/geometry.py</code></td><td><code>(geometry, target_distance_miles) -&gt; (lat, lng)</code></td><td><code>ValueError</code> if geometry empty</td></tr>
+<tr><td><code>HOSEngine</code></td><td><code>hos/engine.py</code></td><td><code>__init__(current_cycle_used_hours, trip_start_hour=0.0)</code>; <code>drive(distance_miles, duration_hours, label)</code>; <code>on_duty(duration_hours, label)</code></td><td>Mutates <code>entries</code></td></tr>
+<tr><td><code>build_duty_schedule</code></td><td><code>hos/engine.py</code></td><td><code>(current_cycle_used_hours, legs, stop_labels, trip_start_hour=0.0, on_duty_hours=None)</code></td><td><code>list[LogEntry]</code>; <code>ValueError</code> on length mismatch</td></tr>
+<tr><td><code>split_into_days</code></td><td><code>hos/engine.py</code></td><td><code>(entries) -&gt; list[DaySchedule]</code></td><td>Pure</td></tr>
+</table>
+<h3 id="46-validation-rules-serializerspy">4.6 Validation rules (<code>serializers.py</code>)</h3>
+<table><tr><th>Field</th><th>Rule</th></tr>
+<tr><td><code>current_location</code></td><td><code>CharField(max_length=255)</code>, required</td></tr>
+<tr><td><code>stops</code></td><td>List of <code>TripStopSerializer</code>; <code>validate_stops</code> requires length ≥ 2</td></tr>
+<tr><td><code>stops[].location</code></td><td><code>CharField(max_length=255)</code></td></tr>
+<tr><td><code>stops[].type</code></td><td><code>ChoiceField(["pickup", "dropoff"])</code></td></tr>
+<tr><td><code>stops[].extra_delay_hours</code></td><td><code>FloatField(min_value=0, max_value=24)</code>, default <code>0.0</code></td></tr>
+<tr><td><code>current_cycle_used_hours</code></td><td><code>FloatField(min_value=0, max_value=70)</code>, required</td></tr>
+<tr><td><code>trip_start_time</code></td><td><code>TimeField</code>, optional, nullable, default <code>None</code>; format <code>hh:mm[:ss]</code></td></tr>
+</table>
+<h3 id="47-api-contract">4.7 API contract</h3>
+<table><tr><th>Method</th><th>Path</th><th>Auth</th><th>Throttle</th><th>Request</th><th>Response</th></tr>
+<tr><td>GET</td><td><code>/api/health/</code></td><td>None</td><td>None</td><td>—</td><td><code>200 {"status":"ok"}</code></td></tr>
+<tr><td>GET</td><td><code>/api/locations/autocomplete/</code></td><td>None</td><td>60/min/IP</td><td><code>?q=&lt;text&gt;</code></td><td><code>200 {"results":[{"label","lat","lng"}]}</code>; <code>[]</code> if <code>q</code> &lt; 3 chars or ORS fails</td></tr>
+<tr><td>POST</td><td><code>/api/trips/plan/</code></td><td>None</td><td>20/min/IP</td><td>See 4.6</td><td><code>200 {route, days, summary}</code>; <code>400</code> field errors or <code>{"detail"}</code>; <code>502 {"detail"}</code>; <code>429</code></td></tr>
+<tr><td>any</td><td><code>/admin/</code></td><td>Django session</td><td>None</td><td>—</td><td>Django admin (no app models registered)</td></tr>
+</table>
+<p>Plan response shape:</p>
+<pre><code>{
+  "route": {
+    "distance_miles": float, "duration_hours": float,
+    "geometry": [[lat, lng], ...],
+    "stops": [ {"type": "current|pickup|dropoff|rest|fuel", "label": str, "lat": float, "lng": float} ]
+  },
+  "days": [
+    { "day_number": int,
+      "entries": [ {"status": "off_duty|driving|on_duty_not_driving|sleeper_berth",
+                    "start_hour": float, "end_hour": float, "label": str} ],
+      "totals": {"off_duty": f, "sleeper_berth": f, "driving": f, "on_duty_not_driving": f} }
+  ],
+  "summary": { "total_trip_hours": float, "requires_34_hour_restart": bool }
+}</code></pre>
+<h3 id="48-frontend-state">4.8 Frontend state</h3>
+<table><tr><th>Owner</th><th>State</th><th>Shape / purpose</th></tr>
+<tr><td><code>App.jsx</code></td><td><code>result</code></td><td>API body or <code>null</code></td></tr>
+<tr><td><code>App.jsx</code></td><td><code>tripInputs</code></td><td>Last submitted payload; used for the print header</td></tr>
+<tr><td><code>App.jsx</code></td><td><code>error</code></td><td>String or <code>null</code></td></tr>
+<tr><td><code>App.jsx</code></td><td><code>isSubmitting</code></td><td>Drives <code>ResultsSkeleton</code> and the disabled submit button</td></tr>
+<tr><td><code>App.jsx</code></td><td><code>hasPlannedOnce</code></td><td>Hides <code>HowItWorks</code> after the first success; never resets</td></tr>
+<tr><td><code>TripForm.jsx</code></td><td><code>values</code></td><td><code>{current_location, current_cycle_used_hours, trip_start_time}</code> as strings</td></tr>
+<tr><td><code>TripForm.jsx</code></td><td><code>stops</code></td><td><code>[{location, type, extra_delay_hours}]</code>, min 2 rows (<code>MIN_STOPS</code>)</td></tr>
+<tr><td><code>LocationAutocomplete.jsx</code></td><td><code>suggestions</code>, <code>isOpen</code>, <code>isSearching</code>, <code>activeIndex</code></td><td>Dropdown UI state</td></tr>
+<tr><td><code>LocationAutocomplete.jsx</code></td><td><code>skipNextLookupRef</code>, <code>isFocusedRef</code>, <code>requestIdRef</code></td><td>Refs: skip lookup after select; focus gate; stale-response guard</td></tr>
+</table>
+<hr>
+<h2 id="5-lld-function-wise-flow">5. LLD — Function-wise Flow</h2>
+<h3 id="51-plan-a-trip">5.1 Plan a trip</h3>
+<p><strong><code>handleSubmit(event)</code></strong> in <code>TripForm.jsx</code></p>
+<ul><li>Calls <code>event.preventDefault()</code>, then <code>onSubmit(buildPayload(values, stops))</code>.</li></ul>
+<p><strong><code>buildPayload(formValues, formStops)</code></strong> in <code>TripForm.jsx</code></p>
+<ul><li>Input: string form state.</li><li>Output: <code>current_cycle_used_hours</code> as <code>Number</code>, each <code>extra_delay_hours</code> as <code>Number(...) || 0</code>, <code>trip_start_time</code> as the <code>HH:MM</code> string or <code>null</code>.</li></ul>
+<p><strong><code>handleSubmit(payload)</code></strong> in <code>App.jsx</code></p>
+<ul><li>Side effects: <code>isSubmitting=true</code>, <code>error=null</code>, <code>result=null</code>.</li><li>On success: <code>result</code>, <code>tripInputs</code>, <code>hasPlannedOnce=true</code>. On throw: <code>error=err.message</code>. <code>finally</code>: <code>isSubmitting=false</code>.</li></ul>
+<p><strong><code>planTrip(payload)</code></strong> in <code>api/tripService.js</code></p>
+<ul><li><code>fetch</code> POST with JSON; parses JSON body.</li><li>If <code>!response.ok</code>: throws <code>Error(data.detail || Object.values(data).flat().join(' '))</code>.</li></ul>
+<p><strong><code>PlanTripView.post(request)</code></strong> in <code>views.py</code></p>
+<ul><li><code>TripRequestSerializer(data=request.data).is_valid(raise_exception=True)</code> → DRF returns 400 with field errors on failure.</li><li>Calls <code>plan_trip(**serializer.validated_data)</code>.</li><li>Catches <code>GeocodingError</code> → 400 <code>{"detail": str(exc)}</code>; <code>RoutingError</code> → 502 <code>{"detail": str(exc)}</code>.</li></ul>
+<p><strong><code>plan_trip(current_location, stops, current_cycle_used_hours, trip_start_time=None)</code></strong> in <code>planner.py</code></p>
+<ol><li><code>geocode(current_location)</code>, then <code>geocode(stop["location"])</code> for each stop, sequentially. N stops → N+1 ORS calls.</li><li><code>get_route([current_coords, *stop_coords])</code> → one ORS call.</li><li><code>trip_start_hour = hour + minute/60</code> or <code>0.0</code>.</li><li>Builds one <code>RouteLeg(leg.distance_miles, leg.duration_hours, "En route to &lt;location&gt;")</code> per <code>zip(route.legs, stops)</code>.</li><li>Stop labels: <code>"&lt;Type&gt; at &lt;location&gt;"</code>, e.g. <code>"Pickup at Colorado Springs, CO"</code>.</li><li>On-duty hours per stop: <code>PICKUP_DROPOFF_HOURS + stop.get("extra_delay_hours", 0.0)</code>.</li><li><code>build_duty_schedule(...)</code> → <code>entries</code>.</li><li><code>stops_for_map</code>: current, then each stop, then one pin per entry whose label is in <code>STOP_TYPES_BY_LABEL</code>, located by <code>point_at_distance(route.geometry, entry.distance_marker_miles)</code>.</li><li><code>split_into_days(entries)</code> → <code>days</code>.</li><li><code>summary.total_trip_hours = entries[-1].end_hour</code>; <code>requires_34_hour_restart = any(label == "34-hour restart")</code>.</li><li>No DB writes. Errors from steps 1–2 propagate.</li></ol>
+<p><strong><code>geocode(location_text)</code></strong> in <code>services/geocoding.py</code></p>
+<ul><li>GET <code>ORS_GEOCODE_URL</code> with <code>api_key</code>, <code>text</code>, <code>size=1</code>, timeout 10 s; <code>raise_for_status()</code>.</li><li><code>requests.RequestException</code> → <code>GeocodingError("Could not geocode '&lt;text&gt;': &lt;exc&gt;")</code>.</li><li>Empty <code>features</code> → <code>GeocodingError("No location found for '&lt;text&gt;'")</code>.</li><li>Returns <code>(lat, lng)</code> from <code>features[0].geometry.coordinates</code> (ORS order is <code>[lng, lat]</code>).</li></ul>
+<p><strong><code>get_route(waypoints)</code></strong> in <code>services/routing.py</code></p>
+<ul><li>POST <code>ORS_DIRECTIONS_URL</code> (<code>driving-hgv</code>, HGV = heavy goods vehicle profile) with <code>[[lng, lat], ...]</code>, timeout 15 s.</li><li>Network error → <code>RoutingError</code>. Non-200 → <code>RoutingError("Routing request failed: &lt;code&gt; &lt;body&gt;")</code>. Missing <code>features/summary/segments/geometry</code> → <code>RoutingError("Unexpected routing response format")</code>.</li><li>Converts meters → miles (<code>/1609.344</code>), seconds → hours (<code>/3600</code>). One <code>RouteLegResult</code> per ORS segment.</li></ul>
+<p><strong><code>build_duty_schedule(current_cycle_used_hours, legs, stop_labels, trip_start_hour=0.0, on_duty_hours=None)</code></strong> in <code>hos/engine.py</code></p>
+<ul><li>Validates <code>len(legs) == len(stop_labels)</code> and <code>len(on_duty_hours) == len(legs)</code>; else <code>ValueError</code>.</li><li>Defaults <code>on_duty_hours</code> to <code>[1.0] * len(legs)</code>.</li><li><code>HOSEngine(current_cycle_used_hours, trip_start_hour)</code>; for each leg: <code>engine.drive(...)</code>, then <code>engine.on_duty(stop_hours, stop_label)</code>.</li><li>Returns <code>engine.entries</code>.</li></ul>
+<p><strong><code>HOSEngine.__init__(current_cycle_used_hours, trip_start_hour=0.0)</code></strong></p>
+<ul><li>Zeroes counters; seeds <code>cycle_hours_used</code>.</li><li>If <code>trip_start_hour &gt; _EPSILON</code>: appends an <code>OFF_DUTY</code> block <code>"Before trip start"</code> from 0 to the start hour.</li></ul>
+<p><strong><code>HOSEngine.drive(distance_miles, duration_hours, label)</code></strong></p>
+<ul><li>Returns immediately if distance or duration ≤ ε.</li><li><code>avg_speed_mph = distance / duration</code> (constant for the leg).</li><li>Loop (section 4.4): compute five headrooms, drive <code>min(...)</code>, or insert the highest-priority rest.</li><li>Each driving chunk adds <code>chunk * avg_speed_mph</code> to <code>miles_since_fuel</code> and <code>distance_traveled_miles</code>.</li></ul>
+<p><strong><code>HOSEngine.on_duty(duration_hours, label)</code></strong></p>
+<ul><li>Loop bounded by <code>window_left</code> and <code>cycle_left</code>. Splits a long stop around a 10-hour reset or 34-hour restart if a limit is reached mid-stop.</li></ul>
+<p><strong><code>HOSEngine._append(status, duration, label)</code></strong></p>
+<ul><li>Ignores durations ≤ ε. Records <code>LogEntry(status, clock, clock+duration, label, distance_traveled_miles)</code>; advances <code>clock</code>.</li><li><code>DRIVING</code>: <code>+duration</code> to <code>driving_hours_today</code>, <code>hours_since_break</code>, <code>cycle_hours_used</code>.</li><li><code>ON_DUTY_NOT_DRIVING</code>: <code>+duration</code> to <code>cycle_hours_used</code>; resets <code>hours_since_break</code> if ≥ 0.5 h.</li><li><code>OFF_DUTY</code>/<code>SLEEPER_BERTH</code>: ≥ 0.5 h resets break; ≥ 10 h resets <code>driving_hours_today</code> and <code>duty_window_start</code>; ≥ 34 h resets <code>cycle_hours_used</code>.</li></ul>
+<p><strong><code>split_into_days(entries)</code></strong> in <code>hos/engine.py</code></p>
+<ul><li>For each entry, walks a cursor; <code>day_index = int(cursor // 24)</code>; cuts at <code>(day_index+1)*24</code>.</li><li>Emits <code>DayEntry</code> with hours rebased to 0–24.</li><li>Per day: <code>totals</code> initialised with every <code>DutyStatus</code> value at 0.0, then summed.</li></ul>
+<p><strong><code>point_at_distance(geometry, target_distance_miles)</code></strong> in <code>services/geometry.py</code></p>
+<ul><li><code>target ≤ 0</code> or one point → first point. Walks segments summing <code>haversine_miles</code>; linearly interpolates lat/lng inside the containing segment; past the end → last point.</li></ul>
+<h3 id="52-autocomplete">5.2 Autocomplete</h3>
+<p><strong><code>useEffect([value])</code></strong> in <code>LocationAutocomplete.jsx</code></p>
+<ul><li>If <code>skipNextLookupRef</code> is set (just selected a suggestion): clear flag, return.</li><li>If <code>value.trim().length &lt; 3</code>: clear suggestions, close, stop spinner.</li><li>Else: <code>requestId = ++requestIdRef.current</code>, spinner on, 300 ms timer → <code>getLocationSuggestions(value, controller.signal)</code>.</li><li>Result is applied only if <code>requestIdRef.current === requestId</code>. <code>isOpen = isFocusedRef.current &amp;&amp; results.length &gt; 0</code>.</li><li>Cleanup on next keystroke: <code>clearTimeout</code>, <code>controller.abort()</code>.</li></ul>
+<p><strong><code>getLocationSuggestions(query, signal)</code></strong> in <code>api/locationService.js</code></p>
+<ul><li>Returns <code>[]</code> on non-OK; else <code>data.results || []</code>.</li></ul>
+<p><strong><code>LocationAutocompleteView.get(request)</code></strong> in <code>views.py</code></p>
+<ul><li><code>q</code> stripped; &lt; <code>MIN_AUTOCOMPLETE_QUERY_LENGTH</code> (3) → <code>{results: []}</code>.</li><li><code>autocomplete(query_text)</code>; <code>GeocodingError</code> → <code>results = []</code>. Always 200.</li></ul>
+<p><strong><code>autocomplete(query_text, limit=5)</code></strong> in <code>services/geocoding.py</code></p>
+<ul><li>GET <code>ORS_AUTOCOMPLETE_URL</code>; maps each feature to <code>{label: properties.label, lat: coords[1], lng: coords[0]}</code>.</li></ul>
+<p><strong><code>handleSelect(suggestion)</code></strong> in <code>LocationAutocomplete.jsx</code></p>
+<ul><li>Sets <code>skipNextLookupRef = true</code>, calls <code>onChange(name, suggestion.label)</code>, clears and closes the list.</li></ul>
+<h3 id="53-render-results">5.3 Render results</h3>
+<p><strong><code>StatTiles({route, dayCount, summary})</code></strong> → formats <code>distance_miles</code>, <code>duration_hours</code>, <code>formatTripDuration(summary.total_trip_hours)</code> (switches to <code>Nd Xh</code> at ≥ 24 h), day count.</p>
+<p><strong><code>MapView({route})</code></strong> → returns <code>null</code> if no geometry; centres on the middle geometry point; one <code>Marker</code> per <code>route.stops</code> item with a <code>divIcon</code> class <code>dot--&lt;type&gt;</code>; link from <code>buildGoogleMapsDirectionsUrl(route.stops)</code>.</p>
+<p><strong><code>buildGoogleMapsDirectionsUrl(stops)</code></strong> in <code>utils/googleMapsLink.js</code> → filters to <code>current/pickup/dropoff</code>; returns <code>null</code> if fewer than 2; builds <code>api=1&amp;origin&amp;destination&amp;waypoints&amp;travelmode=driving</code>.</p>
+<p><strong><code>LogSheet({day})</code></strong> → SVG, <code>HOUR_WIDTH=30</code>, <code>ROW_HEIGHT=36</code>, four rows from <code>ROWS</code>; <code>DutyStepLine</code> draws a horizontal segment per entry at <code>rowY(status)</code> and a vertical connector from the previous entry's row.</p>
+<hr>
+<h2 id="6-dry-runs">6. Dry Runs</h2>
+<p>Values below come from running the real engine functions with these inputs (<code>venv/bin/python</code>). ORS values are realistic stand-ins since the HTTP layer is mocked in tests.</p>
+<h3 id="61-happy-path-with-start-time-and-a-pickup-delay">6.1 Happy path with start time and a pickup delay</h3>
+<p>Request:</p>
+<pre><code>POST /api/trips/plan/
+{ "current_location": "Denver, CO",
+  "stops": [ {"location": "Colorado Springs, CO", "type": "pickup", "extra_delay_hours": 2},
+             {"location": "Albuquerque, NM",     "type": "dropoff"} ],
+  "current_cycle_used_hours": 10,
+  "trip_start_time": "06:30" }</code></pre>
+<table><tr><th>Step</th><th>Function</th><th>State after</th></tr>
+<tr><td>1</td><td><code>TripRequestSerializer.is_valid</code></td><td><code>validated_data</code>: <code>trip_start_time=time(6,30)</code>, stop 2 <code>extra_delay_hours=0.0</code> (default)</td></tr>
+<tr><td>2</td><td><code>geocode</code> × 3</td><td><code>(39.74,-104.99)</code>, <code>(38.83,-104.82)</code>, <code>(35.08,-106.65)</code></td></tr>
+<tr><td>3</td><td><code>get_route</code></td><td>legs: <code>70 mi / 1.2 h</code>, <code>380 mi / 5.8 h</code>; total 450 mi / 7.0 h</td></tr>
+<tr><td>4</td><td><code>plan_trip</code> prep</td><td><code>trip_start_hour=6.5</code>; <code>on_duty_hours=[3.0, 1.0]</code></td></tr>
+<tr><td>5</td><td><code>HOSEngine.__init__</code></td><td>entry <code>OFF 0.00–6.50 "Before trip start"</code>; <code>clock=6.5</code>, <code>cycle=10</code></td></tr>
+<tr><td>6</td><td><code>drive(70, 1.2)</code></td><td>headrooms: window 14, driving 11, break 8, cycle 60, fuel ~17 h → chunk 1.2. <code>DRIVING 6.50–7.70</code>; <code>cycle=11.2</code>, <code>hours_since_break=1.2</code></td></tr>
+<tr><td>7</td><td><code>on_duty(3.0, "Pickup at Colorado Springs, CO")</code></td><td><code>ON_DUTY 7.70–10.70</code>; <code>cycle=14.2</code>; break counter reset (3.0 ≥ 0.5)</td></tr>
+<tr><td>8</td><td><code>drive(380, 5.8)</code></td><td>window_left = 14 − (10.7 − 6.5) = 9.8 → chunk 5.8. <code>DRIVING 10.70–16.50</code>; odometer 450</td></tr>
+<tr><td>9</td><td><code>on_duty(1.0, "Dropoff at Albuquerque, NM")</code></td><td><code>ON_DUTY 16.50–17.50</code>; <code>cycle=21.0</code></td></tr>
+<tr><td>10</td><td><code>split_into_days</code></td><td>Day 1 only. totals: off 6.5, driving 7.0, on_duty_not_driving 4.0, sleeper 0</td></tr>
+<tr><td>11</td><td>response</td><td><code>stops</code> = 3 pins (no rest/fuel); <code>total_trip_hours=17.5</code>; <code>requires_34_hour_restart=false</code></td></tr>
+</table>
+<h3 id="62-long-day-30-minute-break-and-10-hour-reset">6.2 Long day: 30-minute break and 10-hour reset</h3>
+<p>Engine input: <code>current_cycle_used_hours=0</code>, legs <code>600 mi / 10 h</code> (to pickup P) and <code>330 mi / 5.5 h</code> (to dropoff D), no start time.</p>
+<table><tr><th>Step</th><th>Event</th><th>Entry</th><th>Key state after</th></tr>
+<tr><td>1</td><td><code>drive(600,10)</code>: break_left 8 is the minimum</td><td><code>DRIVING 0.0–8.0</code></td><td><code>hours_since_break=8</code>, <code>driving_today=8</code>, odometer 480</td></tr>
+<tr><td>2</td><td>chunk 0, <code>break_left ≤ ε</code> → <code>_take_break()</code></td><td><code>ON_DUTY 8.0–8.5 "30-minute break"</code></td><td><code>hours_since_break=0</code></td></tr>
+<tr><td>3</td><td>continue drive</td><td><code>DRIVING 8.5–10.5</code></td><td><code>driving_today=10</code>, odometer 600</td></tr>
+<tr><td>4</td><td><code>on_duty(1.0)</code></td><td><code>ON_DUTY 10.5–11.5 "Pickup at P"</code></td><td>window used 11.5</td></tr>
+<tr><td>5</td><td><code>drive(330,5.5)</code>: driving_left = 1</td><td><code>DRIVING 11.5–12.5</code></td><td><code>driving_today=11</code></td></tr>
+<tr><td>6</td><td>chunk 0, <code>driving_left ≤ ε</code> → <code>_take_daily_reset()</code></td><td><code>OFF 12.5–22.5 "10-hour rest period"</code></td><td><code>driving_today=0</code>, <code>duty_window_start=None</code></td></tr>
+<tr><td>7</td><td>continue</td><td><code>DRIVING 22.5–27.0</code></td><td>new window opened at 22.5</td></tr>
+<tr><td>8</td><td><code>on_duty(1.0)</code></td><td><code>ON_DUTY 27.0–28.0 "Dropoff at D"</code></td><td>—</td></tr>
+<tr><td>9</td><td><code>split_into_days</code></td><td>Day 1: 7 entries, driving 12.5 (8+2+1 before reset, 1.5 after 22.5). Day 2: <code>DRIVING 0.0–3.0</code>, <code>ON_DUTY 3.0–4.0</code></td><td>—</td></tr>
+</table>
+<p>Map pins added: <code>rest</code> at mile 480 (break) and <code>rest</code> at mile 660 (reset), both via <code>point_at_distance</code>.</p>
+<h3 id="63-cycle-exhaustion-34-hour-restart">6.3 Cycle exhaustion: 34-hour restart</h3>
+<p>Engine input: <code>current_cycle_used_hours=68</code>, legs <code>120 mi / 2 h</code> and <code>240 mi / 4 h</code>.</p>
+<table><tr><th>Step</th><th>Event</th><th>Entry</th><th>State after</th></tr>
+<tr><td>1</td><td><code>drive(120,2)</code>: cycle_left 2 = remaining 2</td><td><code>DRIVING 0–2</code></td><td><code>cycle=70</code></td></tr>
+<tr><td>2</td><td><code>on_duty(1.0)</code>: cycle_left 0 → <code>_take_restart()</code></td><td><code>OFF 2–36 "34-hour restart"</code></td><td><code>cycle=0</code>, <code>driving_today=0</code>, window reset</td></tr>
+<tr><td>3</td><td>continue stop</td><td><code>ON_DUTY 36–37 "Pickup at P"</code></td><td><code>cycle=1</code></td></tr>
+<tr><td>4</td><td><code>drive(240,4)</code></td><td><code>DRIVING 37–41</code></td><td><code>cycle=5</code></td></tr>
+<tr><td>5</td><td><code>on_duty(1.0)</code></td><td><code>ON_DUTY 41–42 "Dropoff at D"</code></td><td><code>cycle=6</code></td></tr>
+<tr><td>6</td><td><code>split_into_days</code></td><td>Day 1: driving 2, off 22. Day 2: off 12, driving 4, on duty 2</td><td>—</td></tr>
+<tr><td>7</td><td>summary</td><td><code>requires_34_hour_restart=true</code> → <code>App.jsx</code> shows the warning banner</td><td>—</td></tr>
+</table>
+<h3 id="64-fuel-stop-at-mile-1000">6.4 Fuel stop at mile 1,000</h3>
+<p>Engine input: <code>current_cycle_used_hours=0</code>, legs <code>50 mi / 1 h</code> and <code>1,100 mi / 18 h</code> (≈ 61.1 mph).</p>
+<table><tr><th>Step</th><th>Event</th><th>Entry</th></tr>
+<tr><td>1</td><td>Drive + pickup</td><td><code>DRIVING 0–1</code>, <code>ON_DUTY 1–2</code></td></tr>
+<tr><td>2</td><td>The 1 h pickup reset the break counter, so the break comes 8 h into leg 2</td><td><code>DRIVING 2.0–10.0</code>, <code>ON_DUTY 10.0–10.5 "30-minute break"</code></td></tr>
+<tr><td>3</td><td>11-hour limit</td><td><code>DRIVING 10.5–12.5</code>, <code>OFF 12.5–22.5 "10-hour rest period"</code></td></tr>
+<tr><td>4</td><td><code>fuel_left = (1000 − 661) / 61.1 ≈ 5.55 h</code> is the minimum</td><td><code>DRIVING 22.5–28.05</code> (odometer 1000)</td></tr>
+<tr><td>5</td><td>chunk 0, no regulatory limit binding → <code>_take_fuel_stop()</code></td><td><code>ON_DUTY 28.05–28.55 "Fuel stop"</code>; <code>miles_since_fuel=0</code></td></tr>
+<tr><td>6</td><td>Finish + dropoff</td><td><code>DRIVING 28.55–31.0</code>, <code>ON_DUTY 31.0–32.0</code></td></tr>
+</table>
+<p><code>STOP_TYPES_BY_LABEL["Fuel stop"] = "fuel"</code> → a <code>fuel</code> pin at mile 1000.</p>
+<h3 id="65-error-path-invalid-request">6.5 Error path: invalid request</h3>
+<p>Request:</p>
+<pre><code>{ "current_location": "Denver, CO",
+  "stops": [ {"location": "Albuquerque, NM", "type": "dropoff"} ],
+  "current_cycle_used_hours": 75,
+  "trip_start_time": "25:00" }</code></pre>
+<table><tr><th>Step</th><th>Function</th><th>Result</th></tr>
+<tr><td>1</td><td>DRF throttle</td><td>Allowed (under 20/min)</td></tr>
+<tr><td>2</td><td><code>TripRequestSerializer.is_valid(raise_exception=True)</code></td><td><code>validate_stops</code> fails (1 stop); <code>max_value=70</code> fails; <code>TimeField</code> parse fails</td></tr>
+<tr><td>3</td><td>DRF exception handler</td><td><code>400 {"stops": ["At least a pickup and a dropoff stop are required."], "current_cycle_used_hours": ["Ensure this value is less than or equal to 70."], "trip_start_time": ["Time has wrong format. Use one of these formats instead: hh:mm[:ss[.uuuuuu]]."]}</code></td></tr>
+<tr><td>4</td><td><code>plan_trip</code></td><td>Never called; zero ORS calls</td></tr>
+<tr><td>5</td><td><code>planTrip</code> (frontend)</td><td>No <code>detail</code> key → joins all messages into one string, throws</td></tr>
+<tr><td>6</td><td><code>App.handleSubmit</code> catch</td><td><code>error</code> set; red alert; <code>result=null</code>; <code>TripForm</code> keeps its values</td></tr>
+</table>
+<p>In the real UI the HTML inputs (<code>min</code>, <code>max</code>, <code>type="time"</code>) block most of these before submit; the API check is the backstop.</p>
+<h3 id="66-error-path-unresolvable-location">6.6 Error path: unresolvable location</h3>
+<p>Request <code>current_location = "Xqzvbnm, ZZ"</code>, otherwise valid.</p>
+<table><tr><th>Step</th><th>Function</th><th>Result</th></tr>
+<tr><td>1</td><td>Serializer</td><td>Valid</td></tr>
+<tr><td>2</td><td><code>geocode("Xqzvbnm, ZZ")</code></td><td>ORS 200 with <code>features: []</code> → <code>GeocodingError("No location found for 'Xqzvbnm, ZZ'")</code></td></tr>
+<tr><td>3</td><td><code>PlanTripView.post</code></td><td><code>400 {"detail": "No location found for 'Xqzvbnm, ZZ'"}</code></td></tr>
+<tr><td>4</td><td>Frontend</td><td>Alert: "Couldn't plan this trip. No location found for 'Xqzvbnm, ZZ'"</td></tr>
+</table>
+<p>Routing is never called. If geocoding succeeds but ORS directions returns non-200 (e.g. no drivable route between continents), the view returns 502.</p>
+<hr>
+<h2 id="7-issues">7. Issues</h2>
+<h3 id="7a-fixed">7a. Fixed</h3>
+<table><tr><th>#</th><th>Issue</th><th>Where</th><th>Fix</th><th>Commit</th></tr>
+<tr><td>F1</td><td>Unwrapped <code>requests</code> errors. <code>raise_for_status()</code> and connection errors were not caught, so a missing or invalid ORS key produced a raw Django 500 debug page instead of the view's clean 400/502</td><td><code>services/geocoding.py</code>, <code>services/routing.py</code></td><td>Wrap calls in <code>try/except requests.RequestException</code> and re-raise as <code>GeocodingError</code> / <code>RoutingError</code>; tests added</td><td><code>f6f15b1</code></td></tr>
+<tr><td>F2</td><td><code>TripForm</code> lost every field after the first successful plan. <code>App.jsx</code> switched between two differently shaped subtrees with a ternary; React reconciles unkeyed children by position, so it unmounted the old <code>TripForm</code> and mounted a new one</td><td><code>frontend/src/App.jsx</code></td><td>Keep <code>TripForm</code> at one stable tree position; only <code>HowItWorks</code> and the card title toggle around it. Comment left in code</td><td><code>2bea3f6</code></td></tr>
+<tr><td>F3</td><td>Stale autocomplete dropdowns. A debounced fetch resolving after the user tabbed away reopened the list on refocus, sometimes stacking dropdowns over other controls</td><td><code>LocationAutocomplete.jsx</code></td><td><code>isFocusedRef</code> gate on <code>setIsOpen</code>; removed reopen-on-focus; blur clears suggestions</td><td><code>171ed00</code></td></tr>
+<tr><td>F4</td><td>Spinner race. A slower, older request could turn off the spinner of a newer one</td><td><code>LocationAutocomplete.jsx</code></td><td>Monotonic <code>requestIdRef</code>; only the latest request updates state. Same commit fixed an input that did not fill its wrapper width</td><td><code>db6d89a</code></td></tr>
+<tr><td>F5</td><td>Illegible log sheet on narrow screens. The SVG shrank its <code>viewBox</code> to fit, making labels unreadable</td><td><code>LogSheet.jsx</code>, <code>App.css</code></td><td>Render at natural size inside a horizontally scrollable <code>.log-sheet-scroll</code> container</td><td><code>0291cd3</code></td></tr>
+<tr><td>F6</td><td>No cost ceiling on ORS-backed endpoints</td><td><code>settings.py</code>, <code>views.py</code></td><td>DRF <code>ScopedRateThrottle</code> (20/min, 60/min). Autocomplete converted to an <code>APIView</code> to set <code>throttle_scope</code>. Tests patch <code>SimpleRateThrottle.THROTTLE_RATES</code> because <code>override_settings</code> does not reach that import-time attribute</td><td><code>c312d24</code></td></tr>
+</table>
+<hr>
+<h2 id="8-testing">8. Testing</h2>
+<table><tr><th>Module</th><th>Tests</th><th>Covers</th></tr>
+<tr><td><code>test_hos_engine.py</code></td><td>13</td><td>No-rest short trip, 30-min break, 10-hour reset, 34-hour restart, start-hour off-duty block, fuel stop, multi-stop, custom on-duty hours, length-mismatch <code>ValueError</code>, midnight split, daily totals = 24</td></tr>
+<tr><td><code>test_views.py</code></td><td>15</td><td>Plan happy path, restart flag, start time, &gt;2 stops, delay extends trip, validation 400s, geocode 400, routing 502, autocomplete success / short query / soft fail, both throttles return 429</td></tr>
+<tr><td><code>test_geocoding.py</code></td><td>6</td><td>First-feature parse, no features, HTTP error wrapping, autocomplete mapping</td></tr>
+<tr><td><code>test_routing.py</code></td><td>4</td><td>Parse distance/duration/legs, non-200, connection error, bad shape</td></tr>
+<tr><td><code>test_geometry.py</code></td><td>6</td><td>Haversine sanity, <code>point_at_distance</code> start / midpoint / beyond end / single point</td></tr>
+</table>
+<p>All tests are <code>SimpleTestCase</code> (no DB). HTTP is mocked with <code>unittest.mock.patch</code>. <code>TEST_PLAN.md</code> adds 25 manual test cases in 8 tiers (happy path → rule triggers → edge cases → UI → export → features → shipping readiness).</p>
+<p>Run: <code>cd backend &amp;&amp; python manage.py test trips</code> → <code>Found 44 test(s)</code> … <code>OK</code>.</p>
+<hr>
+<h2 id="9-design-decisions-and-tradeoffs">9. Design Decisions and Tradeoffs</h2>
+<table><tr><th>Decision</th><th>Why</th><th>Cost</th></tr>
+<tr><td>Pure HOS engine (no I/O, no Django)</td><td>Unit-testable with synthetic legs; deterministic</td><td>Caller must translate real-world inputs (dates, prior duty) into engine terms</td></tr>
+<tr><td>Headroom-<code>min</code> loop instead of per-rule branches</td><td>New rule = one more term in <code>min</code> plus one priority branch</td><td>Priority order is a judgement call and must be documented</td></tr>
+<tr><td>One <code>_append()</code> updates all counters</td><td>Rest helpers cannot forget a counter</td><td><code>_append</code> grows with every new status rule</td></tr>
+<tr><td>Stateless API, recompute on every replan</td><td>No stale plans; a delay cascades correctly</td><td>Every replan re-pays all ORS calls</td></tr>
+<tr><td>Single provider (ORS) for geocode, autocomplete, routing</td><td>One key, one quota, HGV profile available</td><td>Single point of failure; no fallback</td></tr>
+<tr><td>Geocode 400 vs routing 502</td><td>Separates bad user input from upstream failure</td><td>—</td></tr>
+<tr><td>Autocomplete soft-fails to <code>[]</code> with 200</td><td>Suggestions are optional; no error banner while typing</td><td>Silent when ORS is down</td></tr>
+<tr><td>Stops as a generic ordered list</td><td>Multi-stop support with no engine change; <code>type</code> only affects map styling</td><td>—</td></tr>
+<tr><td>Frontend has no HOS logic</td><td>One source of truth for rules</td><td>Every change needs a server round-trip</td></tr>
+<tr><td>SVG log sheets at fixed size + horizontal scroll</td><td>Legible on phones; prints one sheet per landscape page</td><td>Horizontal scroll on narrow screens</td></tr>
+</table>
+</div></main></body></html>

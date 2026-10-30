@@ -383,6 +383,7 @@
 <tr><td>10</td><td><code>split_into_days</code></td><td>Day 1 only. totals: off 6.5, driving 7.0, on_duty_not_driving 4.0, sleeper 0</td></tr>
 <tr><td>11</td><td>response</td><td><code>stops</code> = 3 pins (no rest/fuel); <code>total_trip_hours=17.5</code>; <code>requires_34_hour_restart=false</code></td></tr>
 </table>
+<p>Note: <code>total_trip_hours</code> (17.5) counts the 6.5 h pre-trip off-duty block.</p>
 <h3 id="62-long-day-30-minute-break-and-10-hour-reset">6.2 Long day: 30-minute break and 10-hour reset</h3>
 <p>Engine input: <code>current_cycle_used_hours=0</code>, legs <code>600 mi / 10 h</code> (to pickup P) and <code>330 mi / 5.5 h</code> (to dropoff D), no start time.</p>
 <table><tr><th>Step</th><th>Event</th><th>Entry</th><th>Key state after</th></tr>
@@ -454,7 +455,6 @@
 <tr><td>F5</td><td>Illegible log sheet on narrow screens. The SVG shrank its <code>viewBox</code> to fit, making labels unreadable</td><td><code>LogSheet.jsx</code>, <code>App.css</code></td><td>Render at natural size inside a horizontally scrollable <code>.log-sheet-scroll</code> container</td><td><code>0291cd3</code></td></tr>
 <tr><td>F6</td><td>No cost ceiling on ORS-backed endpoints</td><td><code>settings.py</code>, <code>views.py</code></td><td>DRF <code>ScopedRateThrottle</code> (20/min, 60/min). Autocomplete converted to an <code>APIView</code> to set <code>throttle_scope</code>. Tests patch <code>SimpleRateThrottle.THROTTLE_RATES</code> because <code>override_settings</code> does not reach that import-time attribute</td><td><code>c312d24</code></td></tr>
 </table>
-<hr>
 <h2 id="8-testing">8. Testing</h2>
 <table><tr><th>Module</th><th>Tests</th><th>Covers</th></tr>
 <tr><td><code>test_hos_engine.py</code></td><td>13</td><td>No-rest short trip, 30-min break, 10-hour reset, 34-hour restart, start-hour off-duty block, fuel stop, multi-stop, custom on-duty hours, length-mismatch <code>ValueError</code>, midnight split, daily totals = 24</td></tr>
